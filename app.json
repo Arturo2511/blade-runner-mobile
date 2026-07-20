@@ -6,11 +6,6 @@
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1E1E1E"
-    },
     "updates": {
       "fallbackToCacheTimeout": 0
     },
@@ -19,7 +14,11 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "net.mozzon.bladerunner"
+      "bundleIdentifier": "net.mozzon.bladerunner",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "buildNumber": "3"
     },
     "android": {
       "package": "net.mozzon.bladerunner",
@@ -33,7 +32,16 @@
     },
     "plugins": [
       "expo-localization",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#1E1E1E"
+        }
+      ]
     ],
     "extra": {
       "eas": {
