@@ -18,9 +18,11 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "net.mozzon.bladerunner"
     },
     "android": {
+      "package": "net.mozzon.bladerunner",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1E1E1E"
@@ -32,6 +34,12 @@
     "plugins": [
       "expo-localization",
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ac089270-2e1b-42b7-803f-12a361811e16"
+      }
+    },
+    "owner": "arturomozzon"
   }
 }
