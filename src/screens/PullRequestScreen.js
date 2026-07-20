@@ -35,9 +35,8 @@ import {
 import {
   enrichPrDetailWithBackend,
   pingBackend,
-  triggerScan,
-  getMetrics,
 } from '../services/backendApi';
+import { startScan, isScanning, subscribeScans } from '../services/scanTracker';
 
 const TABS = [
   { key: 'overview', label: 'Aperçu', icon: 'dashboard' },
@@ -93,11 +92,7 @@ const PullRequestScreen = ({ route, navigation }) => {
   const [findingsFilter, setFindingsFilter] = useState('ALL');
   const [scanning, setScanning] = useState(false);
   const scrollRef = useRef(null);
-  const pollRef = useRef(null);
-
-  useEffect(() => () => {
-    if (pollRef.current) clearInterval(pollRef.current);
-  }, []);
+  const wasScanning = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -207,37 +202,31 @@ const PullRequestScreen = ({ route, navigation }) => {
   const handleTriggerScan = async () => {
     const c = prCoords();
     if (!c) return;
-    const before = await getMetrics(c.projectUrl, String(c.number));
-    const prevDate = before?.sonarMetrics?.analysisDate || null;
     setScanning(true);
+    wasScanning.current = true;
     try {
-      await triggerScan(c.projectUrl, String(c.number));
+      await startScan(c.projectUrl, String(c.number));
     } catch (e) {
       setScanning(false);
+      wasScanning.current = false;
       Alert.alert('Échec', e?.message || 'Impossible de lancer le scan.');
-      return;
     }
-    let tries = 0;
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      tries += 1;
-      const data = await getMetrics(c.projectUrl, String(c.number));
-      const newDate = data?.sonarMetrics?.analysisDate || null;
-      const isFresh =
-        !!data && (prevDate === null || (newDate !== null && newDate !== prevDate));
-      if (isFresh) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-        await refreshDetail(c.owner, c.repo, c.number);
-        setScanning(false);
-      } else if (tries >= 90) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-        setScanning(false);
-        Alert.alert('Scan long', 'Le scan prend plus de temps que prévu, réessaie plus tard.');
-      }
-    }, 10000);
   };
+
+  useEffect(() => {
+    const c = prCoords();
+    if (!c) return undefined;
+    const sync = () => {
+      const now = isScanning(c.projectUrl, String(c.number));
+      if (wasScanning.current && !now) {
+        refreshDetail(c.owner, c.repo, c.number).catch(() => {});
+      }
+      wasScanning.current = now;
+      setScanning(now);
+    };
+    sync();
+    return subscribeScans(sync);
+  }, [pr.id, pr.repository]);
 
   const handleApprove = () => {
     Alert.alert('Approuver la PR', "Confirmer l'approbation ?", [
