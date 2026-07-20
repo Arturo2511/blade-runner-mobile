@@ -207,6 +207,8 @@ const PullRequestScreen = ({ route, navigation }) => {
   const handleTriggerScan = async () => {
     const c = prCoords();
     if (!c) return;
+    const before = await getMetrics(c.projectUrl, String(c.number));
+    const prevDate = before?.sonarMetrics?.analysisDate || null;
     setScanning(true);
     try {
       await triggerScan(c.projectUrl, String(c.number));
@@ -220,12 +222,15 @@ const PullRequestScreen = ({ route, navigation }) => {
     pollRef.current = setInterval(async () => {
       tries += 1;
       const data = await getMetrics(c.projectUrl, String(c.number));
-      if (data) {
+      const newDate = data?.sonarMetrics?.analysisDate || null;
+      const isFresh =
+        !!data && (prevDate === null || (newDate !== null && newDate !== prevDate));
+      if (isFresh) {
         clearInterval(pollRef.current);
         pollRef.current = null;
         await refreshDetail(c.owner, c.repo, c.number);
         setScanning(false);
-      } else if (tries >= 60) {
+      } else if (tries >= 90) {
         clearInterval(pollRef.current);
         pollRef.current = null;
         setScanning(false);
