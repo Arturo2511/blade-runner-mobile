@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+.yarn/
+
+# Expo / React Native
+.expo/
+.expo-shared/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native build artefacts
+ios/Pods/
+ios/build/
+ios/.xcode.env.local
+ios/Podfile.lock
+android/.gradle/
+android/build/
+android/app/build/
+android/app/release/
+android/app/debug/
+*.apk
+*.aab
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Metro / bundler caches
+.metro-health-check*
+.metro-cache/
+
+# Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+
+# Tests / coverage
+coverage/
+.nyc_output/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# EAS / Fastlane
+.easignore
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Environnement & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.keystore
+google-services.json
+GoogleService-Info.plist
+
+# Local config (e.g. GitHub OAuth client)
+src/config/github.local.js
