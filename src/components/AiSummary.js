@@ -7,7 +7,7 @@ import {
   ScrollView,
   useWindowDimensions,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { useTheme } from '../services/theme';
 
 function toPlain(md) {

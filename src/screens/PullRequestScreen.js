@@ -14,7 +14,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import { MaterialIcons as Icon } from '@expo/vector-icons';
 import MetricsDashboard from '../components/MetricsDashboard';
 import CodeCityView from '../components/CodeCityView';
 import FindingsList from '../components/FindingsList';
