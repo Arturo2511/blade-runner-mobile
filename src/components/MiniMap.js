@@ -1,25 +1,3 @@
-/**
- * MiniMap — vue condensée d'un fichier, niveau intermédiaire entre
- * la carte des fichiers (CodeCityView) et le diff détaillé (MobileDiffView).
- *
- * Principe (mémoire §4, proposition promoteur du 2026-04-24,
- * référence étude University of Dublin sur les couches de minimap) :
- *  - Afficher la silhouette du fichier entier, chaque ligne = 2 dp de haut
- *  - Superposer 4 couches d'information :
- *      1. Statut de ligne (ajoutée / supprimée / contexte)
- *      2. Findings (alertes Sonar / CodeQL, marqueurs latéraux)
- *      3. Structure (classes / méthodes, bordures latérales)
- *      4. Navigation (zone surlignée sur tap pour situer le reviewer)
- *  - Tap sur la minimap → surligne un bloc + affiche le panneau d'info
- *  - Double-tap → ouvre l'onglet Diff sur cette position (prop `onOpenDiff`)
- *  - Swipe horizontal → navigue entre les fichiers impactés
- *
- * Ergonomie mémoire :
- *  - Cibles tactiles ≥ 48 dp (chips de fichier, bouton "Voir le diff")
- *  - 2D, pas de scroll horizontal du code, word-wrap sur les labels
- *  - Couleurs sévérité identiques au reste de l'app
- */
-
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
@@ -369,15 +347,6 @@ const MiniMap = ({ files = [], findings = [], focusFilePath, onOpenDiff }) => {
                     </Text>
                   </View>
                 ) : null}
-
-                <TouchableOpacity
-                  style={styles.openDiffBtn}
-                  onPress={() => onOpenDiff?.(active, highlightLine)}
-                  accessibilityLabel="Ouvrir le diff à cette position"
-                >
-                  <Icon name="compare-arrows" size={16} color="#FFF" />
-                  <Text style={styles.openDiffBtnText}>Voir le diff</Text>
-                </TouchableOpacity>
               </>
             ) : (
               <Text style={styles.hintText}>
@@ -415,6 +384,22 @@ const MiniMap = ({ files = [], findings = [], focusFilePath, onOpenDiff }) => {
           </View>
         </View>
       </ScrollView>
+
+      {highlightLine ? (
+        <View style={styles.pinnedBar}>
+          <Text style={styles.pinnedLine} numberOfLines={1}>
+            Ligne {highlightLine} / {active.totalLines}
+          </Text>
+          <TouchableOpacity
+            style={styles.pinnedBtn}
+            onPress={() => onOpenDiff?.(active, highlightLine)}
+            accessibilityLabel="Ouvrir le diff à cette position"
+          >
+            <Icon name="compare-arrows" size={16} color="#FFF" />
+            <Text style={styles.openDiffBtnText}>Voir le diff</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -611,13 +596,29 @@ const makeStyles = (colors, isDark) =>
       color: colors.text,
       fontSize: 12,
     },
-    openDiffBtn: {
+    pinnedBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: colors.card,
+    },
+    pinnedLine: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '600',
+      flexShrink: 1,
+      marginRight: 12,
+    },
+    pinnedBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.accent,
-      marginHorizontal: 16,
-      marginTop: 10,
+      paddingHorizontal: 16,
       paddingVertical: 10,
       borderRadius: 8,
       minHeight: 44,
