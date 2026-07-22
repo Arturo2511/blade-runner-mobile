@@ -91,6 +91,7 @@ const PullRequestScreen = ({ route, navigation }) => {
   const [minimapFocus, setMinimapFocus] = useState(null); // filePath | null
   const [findingsFilter, setFindingsFilter] = useState('ALL');
   const [scanning, setScanning] = useState(false);
+  const [pagerHeight, setPagerHeight] = useState(0);
   const scrollRef = useRef(null);
   const wasScanning = useRef(false);
 
@@ -539,9 +540,10 @@ const PullRequestScreen = ({ route, navigation }) => {
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onScrollEnd}
         style={styles.pager}
+        onLayout={(e) => setPagerHeight(e.nativeEvent.layout.height)}
         contentOffset={{ x: tabIndex * width, y: 0 }}
       >
-        <View style={{ width }}>
+        <View style={{ width, height: pagerHeight || undefined }}>
           <ScrollView contentContainerStyle={{ paddingBottom: 96 }}>
             <View style={styles.descriptionCard}>
               <Text style={styles.descriptionLabel}>DESCRIPTION</Text>
@@ -550,10 +552,10 @@ const PullRequestScreen = ({ route, navigation }) => {
             <MetricsDashboard summary={pr.summary} onMetricPress={handleMetricPress} />
           </ScrollView>
         </View>
-        <View style={{ width }}>
+        <View style={{ width, height: pagerHeight || undefined }}>
           <CodeCityView files={pr.impactedFiles} onFilePress={handleFilePress} />
         </View>
-        <View style={{ width }}>
+        <View style={{ width, height: pagerHeight || undefined }}>
           <MiniMap
             files={pr.impactedFiles}
             findings={pr.findings}
@@ -561,7 +563,7 @@ const PullRequestScreen = ({ route, navigation }) => {
             onOpenDiff={handleOpenDiffFromMap}
           />
         </View>
-        <View style={{ width }}>
+        <View style={{ width, height: pagerHeight || undefined }}>
           <MobileDiffView
             hunks={pr.diffHunks}
             onCommentLine={handleCommentLine}
@@ -571,10 +573,10 @@ const PullRequestScreen = ({ route, navigation }) => {
             onClearFocus={clearDiffFocus}
           />
         </View>
-        <View style={{ width }}>
+        <View style={{ width, height: pagerHeight || undefined }}>
           <DependencyGraph graph={pr.callGraph} />
         </View>
-        <View style={{ width }}>
+        <View style={{ width, height: pagerHeight || undefined }}>
           <FindingsList
             findings={pr.findings}
             initialFilter={findingsFilter}
