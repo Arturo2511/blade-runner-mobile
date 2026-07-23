@@ -84,6 +84,8 @@ const DiffLine = React.memo(function DiffLine({
   onPressFinding,
   styles,
   lineColors,
+  isFocusLine,
+  focusLineRef,
 }) {
   const c = lineColors[line.type] || lineColors.context;
   const findingCount = findings ? findings.length : 0;
@@ -101,6 +103,7 @@ const DiffLine = React.memo(function DiffLine({
 
   return (
     <Pressable
+      ref={isFocusLine ? focusLineRef : undefined}
       onLongPress={() => onCommentLine && onCommentLine(hunk, line, idx)}
       delayLongPress={350}
       accessibilityRole="button"
@@ -110,6 +113,7 @@ const DiffLine = React.memo(function DiffLine({
       style={({ pressed }) => [
         styles.line,
         { backgroundColor: c.bg },
+        isFocusLine && styles.focusLine,
         pressed && { opacity: 0.75 },
       ]}
     >
@@ -145,10 +149,21 @@ const HunkBlock = ({
   styles,
   colors,
   lineColors,
+  focusLine,
+  focusLineRef,
 }) => {
   const autoCollapse = hunk.lines.length > AUTO_COLLAPSE_THRESHOLD;
+  const containsFocus =
+    focusLine != null && hunk.lines.some((l) => l.lineNumber === focusLine);
   const [collapsed, setCollapsed] = useState(autoCollapse);
   const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    if (containsFocus) {
+      setCollapsed(false);
+      setShowAll(true);
+    }
+  }, [containsFocus]);
 
   const added = useMemo(
     () => hunk.lines.filter((l) => l.type === 'add').length,
@@ -207,6 +222,8 @@ const HunkBlock = ({
                 onPressFinding={onPressFinding}
                 styles={styles}
                 lineColors={lineColors}
+                isFocusLine={focusLine != null && ln === focusLine}
+                focusLineRef={focusLineRef}
               />
             );
           })}
@@ -238,6 +255,7 @@ const FileBlock = ({
   onPressFinding,
   onNavigateFile,
   focusLine,
+  focusLineRef,
   styles,
   colors,
   lineColors,
@@ -353,6 +371,8 @@ const FileBlock = ({
             styles={styles}
             colors={colors}
             lineColors={lineColors}
+            focusLine={focusLine}
+            focusLineRef={focusLineRef}
           />
         ))}
 
@@ -403,9 +423,43 @@ const MobileDiffView = ({
   const focusActive = !!focusFile && entries.length < allEntries.length;
   const focusFileName = focusFile ? focusFile.split('/').pop() : null;
 
+  const scrollRef = useRef(null);
+  const focusLineRef = useRef(null);
+
+  useEffect(() => {
+    if (focusLine == null || !focusFile) return undefined;
+    let cancelled = false;
+    let tries = 0;
+    const attempt = () => {
+      if (cancelled) return;
+      const node = focusLineRef.current;
+      const sv = scrollRef.current;
+      if (node && sv && typeof node.measureLayout === 'function') {
+        const scrollNode = sv.getScrollableNode ? sv.getScrollableNode() : sv;
+        node.measureLayout(
+          scrollNode,
+          (x, y) => {
+            if (!cancelled) sv.scrollTo({ y: Math.max(0, y - 90), animated: true });
+          },
+          () => {
+            if (!cancelled && tries++ < 12) setTimeout(attempt, 80);
+          }
+        );
+      } else if (tries++ < 12) {
+        setTimeout(attempt, 80);
+      }
+    };
+    const t = setTimeout(attempt, 180);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [focusFile, focusLine, entries]);
+
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
+        ref={scrollRef}
         style={styles.container}
         contentContainerStyle={styles.content}
         stickyHeaderIndices={[0]}
@@ -454,6 +508,7 @@ const MobileDiffView = ({
               onPressFinding={onPressFinding}
               onNavigateFile={onNavigateFile}
               focusLine={focusFile === path ? focusLine : undefined}
+              focusLineRef={focusFile === path ? focusLineRef : undefined}
               styles={styles}
               colors={colors}
               lineColors={lineColors}
@@ -467,6 +522,9 @@ const MobileDiffView = ({
 
 const makeStyles = (colors, isDark) =>
   StyleSheet.create({
+    focusLine: {
+      backgroundColor: colors.accent + '33',
+    },
     container: {
       flex: 1,
       backgroundColor: colors.bg,
