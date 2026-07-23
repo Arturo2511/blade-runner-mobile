@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Switch,
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,7 +27,6 @@ const ProfileScreen = ({ navigation }) => {
   const { t, i18n } = useTranslation();
   const { logout, user } = useAuth();
   const { mode: themeMode, setMode: setThemeMode, colors } = useTheme();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -102,20 +100,7 @@ const ProfileScreen = ({ navigation }) => {
         <Text style={styles.sectionLabel}>{t('settings')}</Text>
 
         <View style={styles.group}>
-          <View style={[styles.row, styles.rowTop]}>
-            <View style={styles.rowLeft}>
-              <Icon name="notifications" size={22} color={colors.accent} />
-              <Text style={styles.rowLabel}>{t('notifications')}</Text>
-            </View>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
-              trackColor={{ false: '#767577', true: colors.accent }}
-              thumbColor={notificationsEnabled ? '#FFF' : '#f4f3f4'}
-            />
-          </View>
-
-          <View style={[styles.row, styles.themeRow]}>
+          <View style={[styles.row, styles.rowTop, styles.themeRow]}>
             <View style={styles.rowLeft}>
               <Icon name="brightness-2" size={22} color={colors.accent} />
               <Text style={styles.rowLabel}>{t('themeMode')}</Text>

@@ -68,6 +68,14 @@ const DependencyGraph = ({ graph }) => {
     return reached;
   }, [impactedIds, inEdges]);
 
+  const analysisFailed = useMemo(
+    () =>
+      nodes.some((n) =>
+        /^error$|failed or skipped|deep-analysis/i.test(String(n.label || '')),
+      ),
+    [nodes],
+  );
+
   const accentFor = useCallback(
     (n) => {
       if (!n) return colors.textFaint;
@@ -105,6 +113,19 @@ const DependencyGraph = ({ graph }) => {
       <View style={styles.emptyWrap}>
         <Icon name="hub" size={40} color={colors.textFaint} />
         <Text style={styles.emptyText}>Aucun graphe d'appels pour cette PR.</Text>
+      </View>
+    );
+  }
+
+  if (analysisFailed) {
+    return (
+      <View style={styles.emptyWrap}>
+        <Icon name="account-tree" size={40} color={colors.textFaint} />
+        <Text style={styles.emptyText}>Graphe d'appels indisponible</Text>
+        <Text style={styles.emptySubText}>
+          L'analyse approfondie (CodeQL) a échoué ou n'a pas pu s'exécuter pour
+          cette PR. Relance l'analyse pour réessayer.
+        </Text>
       </View>
     );
   }
@@ -171,7 +192,7 @@ const DependencyGraph = ({ graph }) => {
               ))}
             </View>
           ) : (
-            <Text style={styles.leafHint}>Racine — personne ne l'appelle.</Text>
+            <Text style={styles.leafHint}>Aucune méthode analysée ne l'appelle.</Text>
           )}
         </View>
 
@@ -208,7 +229,7 @@ const DependencyGraph = ({ graph }) => {
               ))}
             </View>
           ) : (
-            <Text style={styles.leafHint}>Feuille — n'appelle rien.</Text>
+            <Text style={styles.leafHint}>N'appelle aucune autre méthode analysée.</Text>
           )}
         </View>
 
@@ -307,7 +328,21 @@ const makeStyles = (colors) =>
       padding: 40,
       backgroundColor: colors.bg,
     },
-    emptyText: { color: colors.textFaint, marginTop: 10, textAlign: 'center' },
+    emptyText: {
+      color: colors.text,
+      marginTop: 10,
+      textAlign: 'center',
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    emptySubText: {
+      color: colors.textFaint,
+      marginTop: 8,
+      textAlign: 'center',
+      fontSize: 12,
+      lineHeight: 18,
+      paddingHorizontal: 24,
+    },
 
     header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
     title: { color: colors.text, fontSize: 16, fontWeight: 'bold' },
