@@ -6,6 +6,12 @@ import { useTheme } from '../services/theme';
 
 const AT_RISK = '#FFA726';
 
+const shortLabel = (label) => {
+  const s = String(label || '');
+  const parts = s.split('.');
+  return parts.length > 2 ? parts.slice(-2).join('.') : s;
+};
+
 function reachableFrom(startIds, outEdges) {
   const seen = new Set();
   const queue = [...startIds];
@@ -264,7 +270,7 @@ const NeighborChip = ({ node, accent, active, onPress, styles }) => (
   >
     <View style={[styles.chipDot, { backgroundColor: accent }]} />
     <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
-      {node ? node.label : ''}
+      {node ? shortLabel(node.label) : ''}
     </Text>
   </Pressable>
 );
@@ -279,9 +285,16 @@ const FocusCard = ({ node, accent, atRisk, styles, colors }) => {
           size={22}
           color={accent}
         />
-        <Text style={styles.focusLabel} numberOfLines={2}>
-          {node.label}
-        </Text>
+        <View style={styles.focusTextCol}>
+          <Text style={styles.focusLabel} numberOfLines={2}>
+            {shortLabel(node.label)}
+          </Text>
+          {node.label !== shortLabel(node.label) ? (
+            <Text style={styles.focusPath} numberOfLines={2} selectable>
+              {node.label}
+            </Text>
+          ) : null}
+        </View>
       </View>
       <View style={styles.focusMeta}>
         {node.isImpacted ? (
@@ -399,13 +412,18 @@ const makeStyles = (colors) =>
       borderWidth: 2,
       padding: 16,
     },
-    focusTop: { flexDirection: 'row', alignItems: 'center' },
+    focusTop: { flexDirection: 'row', alignItems: 'flex-start' },
+    focusTextCol: { flex: 1, marginLeft: 10 },
     focusLabel: {
       color: colors.text,
       fontSize: 16,
       fontWeight: 'bold',
-      marginLeft: 10,
-      flex: 1,
+    },
+    focusPath: {
+      color: colors.textFaint,
+      fontSize: 11,
+      marginTop: 3,
+      fontFamily: 'monospace',
     },
     focusMeta: {
       flexDirection: 'row',
