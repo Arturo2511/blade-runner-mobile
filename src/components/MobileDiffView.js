@@ -443,6 +443,8 @@ const MobileDiffView = ({
 
   const scrollRef = useRef(null);
   const focusLineRef = useRef(null);
+  const rootRef = useRef(null);
+  const scrollYRef = useRef(0);
 
   useEffect(() => {
     if (focusLine == null || !focusFile) return undefined;
@@ -451,23 +453,22 @@ const MobileDiffView = ({
     const attempt = () => {
       if (cancelled) return;
       const node = focusLineRef.current;
+      const root = rootRef.current;
       const sv = scrollRef.current;
-      if (node && sv && typeof node.measureLayout === 'function') {
-        const scrollNode = sv.getScrollableNode ? sv.getScrollableNode() : sv;
-        node.measureLayout(
-          scrollNode,
-          (x, y) => {
-            if (!cancelled) sv.scrollTo({ y: Math.max(0, y - 90), animated: true });
-          },
-          () => {
-            if (!cancelled && tries++ < 12) setTimeout(attempt, 80);
-          }
-        );
-      } else if (tries++ < 12) {
-        setTimeout(attempt, 80);
+      if (node && root && sv && node.measureInWindow && root.measureInWindow) {
+        root.measureInWindow((rx, ry) => {
+          if (cancelled) return;
+          node.measureInWindow((nx, ny) => {
+            if (cancelled) return;
+            const target = scrollYRef.current + (ny - ry) - 80;
+            sv.scrollTo({ y: Math.max(0, target), animated: true });
+          });
+        });
+      } else if (tries++ < 15) {
+        setTimeout(attempt, 90);
       }
     };
-    const t = setTimeout(attempt, 180);
+    const t = setTimeout(attempt, 250);
     return () => {
       cancelled = true;
       clearTimeout(t);
@@ -476,12 +477,17 @@ const MobileDiffView = ({
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View ref={rootRef} collapsable={false} style={{ flex: 1 }}>
       <ScrollView
         ref={scrollRef}
         style={styles.container}
         contentContainerStyle={styles.content}
         stickyHeaderIndices={[0]}
         showsVerticalScrollIndicator
+        scrollEventThrottle={16}
+        onScroll={(e) => {
+          scrollYRef.current = e.nativeEvent.contentOffset.y;
+        }}
       >
         <View style={styles.stickyWrap}>
           {focusActive ? (
@@ -534,6 +540,7 @@ const MobileDiffView = ({
           ))
         )}
       </ScrollView>
+      </View>
     </GestureHandlerRootView>
   );
 };

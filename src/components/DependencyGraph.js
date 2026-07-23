@@ -41,7 +41,7 @@ const DependencyGraph = ({ graph }) => {
     const m = {};
     edges.forEach((e) => {
       if (!m[e.from]) m[e.from] = [];
-      m[e.from].push(e.to);
+      if (e.from !== e.to && !m[e.from].includes(e.to)) m[e.from].push(e.to);
     });
     return m;
   }, [edges]);
@@ -50,7 +50,7 @@ const DependencyGraph = ({ graph }) => {
     const m = {};
     edges.forEach((e) => {
       if (!m[e.to]) m[e.to] = [];
-      m[e.to].push(e.from);
+      if (e.from !== e.to && !m[e.to].includes(e.from)) m[e.to].push(e.from);
     });
     return m;
   }, [edges]);
