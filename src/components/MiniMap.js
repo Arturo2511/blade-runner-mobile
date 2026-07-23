@@ -204,28 +204,37 @@ const MiniMap = ({ files = [], findings = [], focusFilePath, onOpenDiff }) => {
               );
             })}
 
-            {/* 2. Couche diff (lignes colorées) */}
-            {active.diffLines.map((d) => {
-              const color =
-                d.type === 'add'
-                  ? '#66BB6A'
-                  : d.type === 'remove'
-                    ? '#E53935'
-                    : colors.textFaint + '77';
-              return (
+            {active.diffLines.map((d, i) =>
+              d.type === 'remove' ? null : (
                 <View
-                  key={`l-${d.line}`}
+                  key={`l-${i}`}
                   style={{
                     position: 'absolute',
                     left: GUTTER_WIDTH,
                     top: (d.line - 1) * (LINE_HEIGHT + LINE_GAP),
                     width: MAP_WIDTH,
                     height: LINE_HEIGHT,
-                    backgroundColor: color,
+                    backgroundColor:
+                      d.type === 'add' ? '#66BB6A' : colors.textFaint + '77',
                   }}
                 />
-              );
-            })}
+              )
+            )}
+            {active.diffLines.map((d, i) =>
+              d.type === 'remove' ? (
+                <View
+                  key={`rm-${i}`}
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: (d.line - 1) * (LINE_HEIGHT + LINE_GAP) - 1,
+                    width: MAP_WIDTH + GUTTER_WIDTH,
+                    height: 3,
+                    backgroundColor: '#E53935',
+                  }}
+                />
+              ) : null
+            )}
 
             {/* 3. Couche findings (marqueurs dans la gouttière gauche) */}
             {activeFindings.map((f) => {

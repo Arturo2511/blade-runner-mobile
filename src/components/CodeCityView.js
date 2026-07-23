@@ -13,11 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
-import {
-  PinchGestureHandler,
-  GestureHandlerRootView,
-  State,
-} from 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import { severityColors } from '../data/reviewColors';
 import { useTheme } from '../services/theme';
@@ -252,21 +248,6 @@ const CodeCityView = ({ files = [], onFilePress }) => {
   const [mutedSeverities, setMutedSeverities] = useState(() => new Set());
   const lastTapRef = useRef(0);
 
-  const onPinchEnd = useCallback((e) => {
-    if (e.nativeEvent.state !== State.END) return;
-    const s = e.nativeEvent.scale;
-    if (s > 1.6) {
-      setLevel((prev) =>
-        prev === LEVEL.MODULES ? LEVEL.FILES : LEVEL.FOCUS
-      );
-    } else if (s < 0.7) {
-      setLevel((prev) =>
-        prev === LEVEL.FOCUS ? LEVEL.FILES : LEVEL.MODULES
-      );
-      if (level === LEVEL.FOCUS) setFocusPath(null);
-    }
-  }, [level]);
-
   const visibleFiles = useMemo(
     () => files.filter((f) => !mutedSeverities.has(f.severity)),
     [files, mutedSeverities]
@@ -381,26 +362,24 @@ const CodeCityView = ({ files = [], onFilePress }) => {
           </View>
         </View>
 
-        <PinchGestureHandler onHandlerStateChange={onPinchEnd}>
-          <View
-            style={[
-              styles.treemap,
-              { width: CONTAINER_WIDTH, height: CONTAINER_HEIGHT },
-            ]}
-          >
-            {blocks.map((b) => (
-              <Tile
-                key={b.item.path}
-                block={b}
-                onPress={handleTilePress}
-                onLongPress={handleLongPress}
-                compact={level === LEVEL.FOCUS}
-                styles={styles}
-                isDark={isDark}
-              />
-            ))}
-          </View>
-        </PinchGestureHandler>
+        <View
+          style={[
+            styles.treemap,
+            { width: CONTAINER_WIDTH, height: CONTAINER_HEIGHT },
+          ]}
+        >
+          {blocks.map((b) => (
+            <Tile
+              key={b.item.path}
+              block={b}
+              onPress={handleTilePress}
+              onLongPress={handleLongPress}
+              compact={level === LEVEL.FOCUS}
+              styles={styles}
+              isDark={isDark}
+            />
+          ))}
+        </View>
 
         <View style={styles.legend}>
           {SEVERITIES.map((sev) => {

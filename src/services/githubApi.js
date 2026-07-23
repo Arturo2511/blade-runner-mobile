@@ -247,7 +247,8 @@ export function parsePatch(patch, filePath) {
         content: raw.slice(1),
         lineNumber: oldLineNo,
       });
-      // remove n'apparait pas dans le fichier "new", on n'ajoute pas à diffLines
+      result.diffLines.push({ line: Math.max(1, newLineNo), type: 'remove' });
+      result.totalLines = Math.max(result.totalLines, newLineNo);
       oldLineNo += 1;
     } else if (raw.startsWith('\\')) {
       // \ No newline at end of file
