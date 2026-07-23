@@ -1,60 +1,10 @@
-/**
- * DependencyGraph — layered impact graph for a PR (2D, no SVG).
- */
-
-import React, { useMemo, useRef, useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Modal,
-} from 'react-native';
+import React, { useMemo, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { severityColors } from '../data/reviewColors';
 import { useTheme } from '../services/theme';
 
 const AT_RISK = '#FFA726';
-
-const FILTERS = [
-  { key: 'ALL', label: 'Tout' },
-  { key: 'IMPACTED', label: 'Impactés seulement' },
-  { key: 'CRITICAL', label: 'Chemin critique' },
-];
-
-const DOUBLE_TAP_MS = 280;
-const LONG_PRESS_MS = 450;
-
-function computeLayers(nodes, inEdges) {
-  const rank = {};
-  const visiting = {};
-
-  const dfs = (id) => {
-    if (rank[id] !== undefined) return rank[id];
-    if (visiting[id]) return 0;
-    visiting[id] = true;
-    const parents = inEdges[id] || [];
-    const r = parents.length === 0 ? 0 : 1 + Math.max(...parents.map(dfs));
-    visiting[id] = false;
-    rank[id] = r;
-    return r;
-  };
-
-  nodes.forEach((n) => dfs(n.id));
-
-  const layers = {};
-  nodes.forEach((n) => {
-    const r = rank[n.id] ?? 0;
-    if (!layers[r]) layers[r] = [];
-    layers[r].push(n);
-  });
-
-  return Object.keys(layers)
-    .map(Number)
-    .sort((a, b) => a - b)
-    .map((r) => ({ rank: r, nodes: layers[r] }));
-}
 
 function reachableFrom(startIds, outEdges) {
   const seen = new Set();
@@ -71,31 +21,13 @@ function reachableFrom(startIds, outEdges) {
   return seen;
 }
 
-function impactPath(startId, outEdges, labelOf) {
-  const lines = [];
-  const seen = new Set([startId]);
-  const walk = (id, depth) => {
-    (outEdges[id] || []).forEach((next) => {
-      lines.push(`${'  '.repeat(depth)}${labelOf(id)} → ${labelOf(next)}`);
-      if (!seen.has(next)) {
-        seen.add(next);
-        walk(next, depth + 1);
-      }
-    });
-  };
-  walk(startId, 0);
-  return lines;
-}
-
 const DependencyGraph = ({ graph }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const { nodes = [], edges = [] } = graph || {};
-  const [selectedId, setSelectedId] = useState(null);
-  const [filter, setFilter] = useState('ALL');
-  const [tooltip, setTooltip] = useState(null);
-  const lastTapRef = useRef({ id: null, ts: 0 });
+  const [focusId, setFocusId] = useState(null);
+  const [history, setHistory] = useState([]);
 
   const outEdges = useMemo(() => {
     const m = {};
@@ -115,10 +47,15 @@ const DependencyGraph = ({ graph }) => {
     return m;
   }, [edges]);
 
-  const labelOf = useCallback(
-    (id) => nodes.find((n) => n.id === id)?.label || id,
-    [nodes],
-  );
+  const nodeById = useMemo(() => {
+    const m = {};
+    nodes.forEach((n) => {
+      m[n.id] = n;
+    });
+    return m;
+  }, [nodes]);
+
+  const labelOf = useCallback((id) => nodeById[id]?.label || id, [nodeById]);
 
   const impactedIds = useMemo(
     () => nodes.filter((n) => n.isImpacted).map((n) => n.id),
@@ -131,268 +68,229 @@ const DependencyGraph = ({ graph }) => {
     return reached;
   }, [impactedIds, outEdges]);
 
-  const criticalIds = useMemo(() => {
-    const set = new Set(impactedIds);
-    atRiskIds.forEach((id) => set.add(id));
-    return set;
-  }, [impactedIds, atRiskIds]);
-
-  const visibleNodes = useMemo(() => {
-    if (filter === 'IMPACTED') return nodes.filter((n) => n.isImpacted);
-    if (filter === 'CRITICAL') return nodes.filter((n) => criticalIds.has(n.id));
-    return nodes;
-  }, [nodes, filter, criticalIds]);
-
-  const layers = useMemo(
-    () => computeLayers(visibleNodes, inEdges),
-    [visibleNodes, inEdges],
+  const accentFor = useCallback(
+    (n) => {
+      if (!n) return colors.textFaint;
+      if (n.isImpacted) {
+        const s = n.severity && n.severity !== 'CLEAN' ? n.severity : null;
+        return s ? severityColors[s] : colors.accent;
+      }
+      if (atRiskIds.has(n.id)) return AT_RISK;
+      return colors.textFaint;
+    },
+    [atRiskIds, colors],
   );
 
-  const handleTap = (id) => {
-    const now = Date.now();
-    const last = lastTapRef.current;
-    if (last.id === id && now - last.ts < DOUBLE_TAP_MS) {
-      setSelectedId(null);
-      lastTapRef.current = { id: null, ts: 0 };
-      return;
-    }
-    lastTapRef.current = { id, ts: now };
-    setSelectedId((prev) => (prev === id ? null : id));
+  const focus = focusId || impactedIds[0] || nodes[0]?.id || null;
+  const focusNode = focus ? nodeById[focus] : null;
+  const callers = focus ? inEdges[focus] || [] : [];
+  const callees = focus ? outEdges[focus] || [] : [];
+
+  const navigateTo = (id) => {
+    if (!id || id === focus) return;
+    setHistory((h) => [...h, focus]);
+    setFocusId(id);
   };
 
-  const handleLongPress = (id) => {
-    setTooltip({
-      nodeId: id,
-      lines: impactPath(id, outEdges, labelOf),
+  const goBack = () => {
+    setHistory((h) => {
+      if (!h.length) return h;
+      setFocusId(h[h.length - 1]);
+      return h.slice(0, -1);
     });
   };
 
-  const accentFor = (n) => {
-    if (n.isImpacted) {
-      const s = n.severity && n.severity !== 'CLEAN' ? n.severity : null;
-      return s ? severityColors[s] : colors.accent;
-    }
-    if (atRiskIds.has(n.id)) return AT_RISK;
-    return colors.textFaint;
-  };
-
-  const selectedNode = selectedId ? nodes.find((n) => n.id === selectedId) : null;
+  if (!nodes.length) {
+    return (
+      <View style={styles.emptyWrap}>
+        <Icon name="hub" size={40} color={colors.textFaint} />
+        <Text style={styles.emptyText}>Aucun graphe d'appels pour cette PR.</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        accessibilityLabel="Graphe de dépendances"
-      >
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Graphe de dépendances</Text>
-          <Text style={styles.subtitle}>
-            {impactedIds.length} impactés · {atRiskIds.size} au risque ·{' '}
-            {nodes.length} total
-          </Text>
-        </View>
-
-        <View style={styles.chipRow} accessibilityRole="radiogroup">
-          {FILTERS.map((f) => {
-            const active = filter === f.key;
-            return (
-              <Pressable
-                key={f.key}
-                onPress={() => setFilter(f.key)}
-                hitSlop={8}
-                style={({ pressed }) => [
-                  styles.chip,
-                  active && styles.chipActive,
-                  pressed && { opacity: 0.7 },
-                ]}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: active }}
-              >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                  {f.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <View style={styles.legend} accessibilityLabel="Légende">
-          <LegendItem styles={styles} color={severityColors.CRITICAL} label="Impacté critique" />
-          <LegendItem styles={styles} color={colors.accent} label="Impacté" />
-          <LegendItem styles={styles} color={AT_RISK} label="Au risque (cascade)" dashed />
-          <LegendItem styles={styles} color={colors.textFaint} label="Sain" />
-        </View>
-
-        {layers.map((layer, idx) => (
-          <View key={layer.rank} style={styles.layer}>
-            <View style={styles.layerHeader}>
-              <Text style={styles.layerTitle}>Niveau {idx}</Text>
-              <View style={styles.layerLine} />
-            </View>
-
-            {layer.nodes.map((n) => {
-              const isSelected = selectedId === n.id;
-              const atRisk = atRiskIds.has(n.id);
-              const accent = accentFor(n);
-              const callers = inEdges[n.id] || [];
-              const callees = outEdges[n.id] || [];
-
-              return (
-                <Pressable
-                  key={n.id}
-                  onPress={() => handleTap(n.id)}
-                  onLongPress={() => handleLongPress(n.id)}
-                  delayLongPress={LONG_PRESS_MS}
-                  hitSlop={4}
-                  style={({ pressed }) => [
-                    styles.node,
-                    atRisk && styles.nodeAtRisk,
-                    isSelected && styles.nodeSelected,
-                    pressed && { opacity: 0.85 },
-                  ]}
-                  accessibilityRole="button"
-                >
-                  <View style={styles.nodeHeader}>
-                    <Icon
-                      name={n.type === 'class' ? 'class' : 'functions'}
-                      size={18}
-                      color={accent}
-                    />
-                    <Text style={styles.nodeLabel} numberOfLines={1}>
-                      {n.label}
-                    </Text>
-                    {n.isImpacted && (
-                      <View style={[styles.badge, { backgroundColor: accent }]}>
-                        <Text style={styles.badgeText}>IMPACTÉ</Text>
-                      </View>
-                    )}
-                    {!n.isImpacted && atRisk && (
-                      <View style={[styles.badge, styles.badgeAtRisk]}>
-                        <Text style={styles.badgeText}>AU RISQUE</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={styles.edgeRow}>
-                    <Text style={styles.edgeArrow}>←</Text>
-                    <Text style={styles.edgeLabel} numberOfLines={2}>
-                      {callers.length
-                        ? callers.map(labelOf).join(', ')
-                        : 'racine (aucun appelant)'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.edgeRow}>
-                    <Text style={styles.edgeArrow}>→</Text>
-                    <Text style={styles.edgeLabel} numberOfLines={2}>
-                      {callees.length
-                        ? callees.map(labelOf).join(', ')
-                        : 'feuille (aucun appel sortant)'}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        ))}
-
-        {visibleNodes.length === 0 && (
-          <View style={styles.empty}>
-            <Icon name="hub" size={40} color={colors.textFaint} />
-            <Text style={styles.emptyText}>
-              Aucun nœud à afficher pour ce filtre.
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>Graphe d'appels</Text>
+            <Text style={styles.subtitle}>
+              {impactedIds.length} impactés · {atRiskIds.size} au risque ·{' '}
+              {nodes.length} total
             </Text>
           </View>
-        )}
+          {history.length > 0 ? (
+            <Pressable
+              onPress={goBack}
+              hitSlop={10}
+              style={styles.backBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Revenir au nœud précédent"
+            >
+              <Icon name="arrow-back" size={16} color={colors.accent} />
+              <Text style={styles.backText}>Retour</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        {impactedIds.length > 0 ? (
+          <View style={styles.jumpWrap}>
+            <Text style={styles.sectionLabel}>ALLER À UN NŒUD IMPACTÉ</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.jumpRow}
+            >
+              {impactedIds.map((id) => (
+                <NeighborChip
+                  key={id}
+                  node={nodeById[id]}
+                  accent={accentFor(nodeById[id])}
+                  active={id === focus}
+                  onPress={() => navigateTo(id)}
+                  styles={styles}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>APPELÉ PAR ({callers.length})</Text>
+          {callers.length ? (
+            <View style={styles.chipsWrap}>
+              {callers.map((id) => (
+                <NeighborChip
+                  key={id}
+                  node={nodeById[id]}
+                  accent={accentFor(nodeById[id])}
+                  onPress={() => navigateTo(id)}
+                  styles={styles}
+                />
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.leafHint}>Racine — personne ne l'appelle.</Text>
+          )}
+        </View>
+
+        <View style={styles.connector}>
+          <Icon name="arrow-downward" size={18} color={colors.textFaint} />
+        </View>
+
+        <FocusCard
+          node={focusNode}
+          accent={accentFor(focusNode)}
+          atRisk={
+            focusNode && !focusNode.isImpacted && atRiskIds.has(focusNode.id)
+          }
+          styles={styles}
+          colors={colors}
+        />
+
+        <View style={styles.connector}>
+          <Icon name="arrow-downward" size={18} color={colors.textFaint} />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>APPELLE ({callees.length})</Text>
+          {callees.length ? (
+            <View style={styles.chipsWrap}>
+              {callees.map((id) => (
+                <NeighborChip
+                  key={id}
+                  node={nodeById[id]}
+                  accent={accentFor(nodeById[id])}
+                  onPress={() => navigateTo(id)}
+                  styles={styles}
+                />
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.leafHint}>Feuille — n'appelle rien.</Text>
+          )}
+        </View>
+
+        <View style={styles.legend}>
+          <LegendItem styles={styles} color={severityColors.CRITICAL} label="Impacté critique" />
+          <LegendItem styles={styles} color={colors.accent} label="Impacté" />
+          <LegendItem styles={styles} color={AT_RISK} label="Au risque" />
+          <LegendItem styles={styles} color={colors.textFaint} label="Sain" />
+        </View>
 
         <View style={styles.hint}>
           <Icon name="touch-app" size={14} color={colors.textFaint} />
           <Text style={styles.hintText}>
-            Tap : sélectionner · Long-press : chemin d'impact · Double-tap : vue globale
+            Tape un voisin pour explorer le graphe de proche en proche.
           </Text>
         </View>
       </ScrollView>
-
-      {selectedNode && (
-        <View style={styles.panel} accessibilityLabel="Voisins du nœud sélectionné">
-          <View style={styles.panelHeader}>
-            <Text style={styles.panelTitle} numberOfLines={1}>
-              {selectedNode.label}
-            </Text>
-            <Pressable
-              onPress={() => setSelectedId(null)}
-              hitSlop={12}
-              style={styles.panelClose}
-              accessibilityRole="button"
-              accessibilityLabel="Fermer le panneau"
-            >
-              <Icon name="close" size={20} color={colors.text} />
-            </Pressable>
-          </View>
-          <Text style={styles.panelSection}>
-            Entrants ({(inEdges[selectedNode.id] || []).length})
-          </Text>
-          <Text style={styles.panelList}>
-            {(inEdges[selectedNode.id] || []).map(labelOf).join('\n') || '—'}
-          </Text>
-          <Text style={styles.panelSection}>
-            Sortants ({(outEdges[selectedNode.id] || []).length})
-          </Text>
-          <Text style={styles.panelList}>
-            {(outEdges[selectedNode.id] || []).map(labelOf).join('\n') || '—'}
-          </Text>
-        </View>
-      )}
-
-      <Modal
-        visible={!!tooltip}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setTooltip(null)}
-      >
-        <Pressable style={styles.modalBackdrop} onPress={() => setTooltip(null)}>
-          <Pressable style={styles.tooltip} onPress={() => {}}>
-            <View style={styles.tooltipHeader}>
-              <Icon name="account-tree" size={18} color={colors.accent} />
-              <Text style={styles.tooltipTitle} numberOfLines={1}>
-                Chemin d'impact — {tooltip ? labelOf(tooltip.nodeId) : ''}
-              </Text>
-            </View>
-            <ScrollView style={styles.tooltipBody}>
-              {tooltip && tooltip.lines.length > 0 ? (
-                tooltip.lines.map((l, i) => (
-                  <Text key={i} style={styles.tooltipLine}>
-                    {l}
-                  </Text>
-                ))
-              ) : (
-                <Text style={styles.tooltipLine}>Aucun appel sortant.</Text>
-              )}
-            </ScrollView>
-            <Pressable
-              onPress={() => setTooltip(null)}
-              style={styles.tooltipClose}
-              accessibilityRole="button"
-            >
-              <Text style={styles.tooltipCloseText}>Fermer</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 };
 
-const LegendItem = ({ color, label, dashed, styles }) => (
+const NeighborChip = ({ node, accent, active, onPress, styles }) => (
+  <Pressable
+    onPress={onPress}
+    hitSlop={4}
+    style={({ pressed }) => [
+      styles.chip,
+      active && styles.chipActive,
+      pressed && { opacity: 0.7 },
+    ]}
+    accessibilityRole="button"
+    accessibilityLabel={`Naviguer vers ${node ? node.label : ''}`}
+  >
+    <View style={[styles.chipDot, { backgroundColor: accent }]} />
+    <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
+      {node ? node.label : ''}
+    </Text>
+  </Pressable>
+);
+
+const FocusCard = ({ node, accent, atRisk, styles, colors }) => {
+  if (!node) return null;
+  return (
+    <View style={[styles.focusCard, { borderColor: accent, backgroundColor: accent + '14' }]}>
+      <View style={styles.focusTop}>
+        <Icon
+          name={node.type === 'class' ? 'class' : 'functions'}
+          size={22}
+          color={accent}
+        />
+        <Text style={styles.focusLabel} numberOfLines={2}>
+          {node.label}
+        </Text>
+      </View>
+      <View style={styles.focusMeta}>
+        {node.isImpacted ? (
+          <View style={[styles.badge, { backgroundColor: accent }]}>
+            <Text style={styles.badgeText}>IMPACTÉ</Text>
+          </View>
+        ) : atRisk ? (
+          <View style={[styles.badge, { backgroundColor: AT_RISK }]}>
+            <Text style={styles.badgeText}>AU RISQUE</Text>
+          </View>
+        ) : (
+          <View style={[styles.badge, { backgroundColor: colors.textFaint }]}>
+            <Text style={styles.badgeText}>SAIN</Text>
+          </View>
+        )}
+        {node.severity && node.severity !== 'CLEAN' ? (
+          <Text style={[styles.focusSeverity, { color: accent }]}>{node.severity}</Text>
+        ) : null}
+        <Text style={styles.focusType}>
+          {node.type === 'class' ? 'classe' : 'fonction'}
+        </Text>
+      </View>
+    </View>
+  );
+};
+
+const LegendItem = ({ color, label, styles }) => (
   <View style={styles.legendItem}>
-    <View
-      style={[
-        styles.legendDot,
-        { backgroundColor: dashed ? 'transparent' : color, borderColor: color },
-        dashed && styles.legendDotDashed,
-      ]}
-    />
+    <View style={[styles.legendDot, { backgroundColor: color }]} />
     <Text style={styles.legendText}>{label}</Text>
   </View>
 );
@@ -401,35 +299,101 @@ const makeStyles = (colors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     scroll: { flex: 1 },
-    content: { padding: 16, paddingBottom: 200 },
+    content: { padding: 16, paddingBottom: 60 },
 
-    header: { marginBottom: 12 },
+    emptyWrap: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 40,
+      backgroundColor: colors.bg,
+    },
+    emptyText: { color: colors.textFaint, marginTop: 10, textAlign: 'center' },
+
+    header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
     title: { color: colors.text, fontSize: 16, fontWeight: 'bold' },
     subtitle: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
-
-    chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
-    chip: {
-      minHeight: 48,
-      minWidth: 48,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      borderRadius: 24,
-      backgroundColor: colors.card,
+    backBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: colors.border,
+      backgroundColor: colors.card,
+    },
+    backText: { color: colors.accent, fontSize: 12, fontWeight: '700', marginLeft: 4 },
+
+    jumpWrap: { marginBottom: 16 },
+    jumpRow: { paddingRight: 8, alignItems: 'center' },
+
+    sectionLabel: {
+      color: colors.textMuted,
+      fontSize: 10,
+      letterSpacing: 0.8,
+      fontWeight: '700',
+      marginBottom: 8,
+    },
+    section: { marginBottom: 4 },
+
+    chipsWrap: { flexDirection: 'row', flexWrap: 'wrap' },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      minHeight: 40,
+      paddingHorizontal: 12,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
       marginRight: 8,
       marginBottom: 8,
-      justifyContent: 'center',
+      maxWidth: '100%',
     },
-    chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-    chipText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
-    chipTextActive: { color: '#FFF' },
+    chipActive: { borderColor: colors.accent, backgroundColor: colors.accent + '22' },
+    chipDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+    chipText: { color: colors.textMuted, fontSize: 13, fontWeight: '600', flexShrink: 1 },
+    chipTextActive: { color: colors.text },
+
+    leafHint: { color: colors.textFaint, fontSize: 12, fontStyle: 'italic', marginBottom: 8 },
+
+    connector: { alignItems: 'center', paddingVertical: 2 },
+
+    focusCard: {
+      borderRadius: 12,
+      borderWidth: 2,
+      padding: 16,
+    },
+    focusTop: { flexDirection: 'row', alignItems: 'center' },
+    focusLabel: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: 'bold',
+      marginLeft: 10,
+      flex: 1,
+    },
+    focusMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      marginTop: 10,
+    },
+    badge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 4,
+      marginRight: 8,
+    },
+    badgeText: { color: '#FFF', fontSize: 9, fontWeight: 'bold', letterSpacing: 0.5 },
+    focusSeverity: { fontSize: 12, fontWeight: '700', marginRight: 8 },
+    focusType: { color: colors.textFaint, fontSize: 12 },
 
     legend: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      marginBottom: 12,
-      padding: 8,
+      marginTop: 20,
+      padding: 10,
       backgroundColor: colors.card,
       borderRadius: 8,
       borderWidth: 1,
@@ -438,175 +402,26 @@ const makeStyles = (colors) =>
     legendItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginRight: 12,
+      marginRight: 14,
       marginBottom: 4,
     },
-    legendDot: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      marginRight: 6,
-      borderWidth: 2,
-    },
-    legendDotDashed: { borderStyle: 'dashed' },
+    legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 6 },
     legendText: { color: colors.textMuted, fontSize: 11 },
-
-    layer: { marginBottom: 16 },
-    layerHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-    layerTitle: {
-      color: colors.textFaint,
-      fontSize: 10,
-      fontWeight: 'bold',
-      letterSpacing: 1,
-      marginRight: 8,
-    },
-    layerLine: { flex: 1, height: 1, backgroundColor: colors.border },
-
-    node: {
-      backgroundColor: colors.card,
-      borderRadius: 8,
-      padding: 12,
-      marginBottom: 8,
-      minHeight: 48,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    nodeAtRisk: {
-      borderWidth: 1,
-      borderStyle: 'dashed',
-      borderColor: AT_RISK,
-    },
-    nodeSelected: { backgroundColor: colors.cardAlt },
-    nodeHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-    nodeLabel: {
-      color: colors.text,
-      fontSize: 13,
-      fontWeight: '600',
-      marginLeft: 8,
-      flex: 1,
-    },
-    badge: {
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 4,
-      marginLeft: 6,
-    },
-    badgeAtRisk: { backgroundColor: AT_RISK },
-    badgeText: {
-      color: '#FFF',
-      fontSize: 9,
-      fontWeight: 'bold',
-      letterSpacing: 0.5,
-    },
-
-    edgeRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 4 },
-    edgeArrow: {
-      color: colors.textFaint,
-      fontSize: 14,
-      width: 18,
-      textAlign: 'center',
-    },
-    edgeLabel: { color: colors.textMuted, fontSize: 11, marginLeft: 4, flex: 1 },
-
-    empty: { alignItems: 'center', padding: 40 },
-    emptyText: { color: colors.textFaint, marginTop: 8 },
 
     hint: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      marginTop: 8,
+      marginTop: 14,
       paddingHorizontal: 8,
     },
     hintText: {
       color: colors.textFaint,
-      fontSize: 10,
+      fontSize: 11,
       marginLeft: 6,
       textAlign: 'center',
+      flexShrink: 1,
     },
-
-    panel: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: colors.card,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      padding: 12,
-      maxHeight: 220,
-    },
-    panelHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 8,
-    },
-    panelTitle: {
-      flex: 1,
-      color: colors.text,
-      fontSize: 14,
-      fontWeight: 'bold',
-    },
-    panelClose: {
-      minWidth: 48,
-      minHeight: 48,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    panelSection: {
-      color: colors.accent,
-      fontSize: 11,
-      fontWeight: 'bold',
-      marginTop: 6,
-      marginBottom: 2,
-      letterSpacing: 0.5,
-    },
-    panelList: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
-
-    modalBackdrop: {
-      flex: 1,
-      backgroundColor: colors.overlay,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 24,
-    },
-    tooltip: {
-      width: '100%',
-      maxHeight: '70%',
-      backgroundColor: colors.card,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: 16,
-    },
-    tooltipHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 12,
-    },
-    tooltipTitle: {
-      flex: 1,
-      color: colors.text,
-      fontSize: 14,
-      fontWeight: 'bold',
-      marginLeft: 8,
-    },
-    tooltipBody: { maxHeight: 320 },
-    tooltipLine: {
-      color: colors.textMuted,
-      fontSize: 12,
-      fontFamily: 'monospace',
-      marginBottom: 2,
-    },
-    tooltipClose: {
-      marginTop: 12,
-      minHeight: 48,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.accent,
-      borderRadius: 8,
-    },
-    tooltipCloseText: { color: '#FFF', fontWeight: 'bold', fontSize: 13 },
   });
 
 export default DependencyGraph;
