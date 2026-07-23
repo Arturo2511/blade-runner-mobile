@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../services/theme';
 
 function toPlain(md) {
@@ -87,6 +88,7 @@ function MarkdownBlocks({ md, styles }) {
 }
 
 const AiSummary = ({ summary }) => {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { height } = useWindowDimensions();
@@ -99,14 +101,14 @@ const AiSummary = ({ summary }) => {
     <View style={styles.card}>
       <View style={styles.header}>
         <Icon name="auto-awesome" size={14} color="#FFD54F" />
-        <Text style={styles.label}>Résumé IA</Text>
+        <Text style={styles.label}>{t('aiSummaryLabel')}</Text>
         <View style={{ flex: 1 }} />
         <TouchableOpacity
           onPress={() => setExpanded((e) => !e)}
           accessibilityRole="button"
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={styles.toggle}>{expanded ? 'Voir moins' : 'Voir plus'}</Text>
+          <Text style={styles.toggle}>{expanded ? t('aiSummaryShowLess') : t('aiSummaryShowMore')}</Text>
         </TouchableOpacity>
       </View>
 

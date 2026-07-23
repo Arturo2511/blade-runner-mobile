@@ -15,6 +15,7 @@ import {
   FlatList,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { severityColors } from '../data/reviewColors';
 import { sortBySeverity, severityRank } from '../utils/sarifParser';
 import { useTheme } from '../services/theme';
@@ -26,11 +27,11 @@ const categoryIcons = {
   PERF: 'speed',
 };
 
-const categoryLabels = {
-  SECURITY: 'Sécurité',
-  BUG: 'Bug',
-  SMELL: 'Smell',
-  PERF: 'Perf',
+const categoryLabelKeys = {
+  SECURITY: 'findingsCategorySecurity',
+  BUG: 'findingsCategoryBug',
+  SMELL: 'findingsCategorySmell',
+  PERF: 'findingsCategoryPerf',
 };
 
 const sourceLabels = {
@@ -38,12 +39,12 @@ const sourceLabels = {
   sonar: 'Sonar',
 };
 
-const severityFrLabels = {
-  CRITICAL: 'Critique',
-  HIGH: 'Élevé',
-  MED: 'Moyen',
-  LOW: 'Faible',
-  CLEAN: 'OK',
+const severityLabelKeys = {
+  CRITICAL: 'findingsSeverityCritical',
+  HIGH: 'findingsSeverityHigh',
+  MED: 'findingsSeverityMed',
+  LOW: 'findingsSeverityLow',
+  CLEAN: 'findingsSeverityClean',
 };
 
 const FindingCard = ({
@@ -57,12 +58,16 @@ const FindingCard = ({
   styles,
   colors,
 }) => {
+  const { t } = useTranslation();
   const color = severityColors[finding.severity] || '#888';
   const catIcon = categoryIcons[finding.category] || 'info';
   const fileShort = finding.location?.filePath
     ? finding.location.filePath.split('/').slice(-2).join('/')
     : '—';
   const startLine = finding.location?.startLine ?? 0;
+  const severityLabel = severityLabelKeys[finding.severity]
+    ? t(severityLabelKeys[finding.severity])
+    : finding.severity;
 
   return (
     <TouchableOpacity
@@ -72,7 +77,7 @@ const FindingCard = ({
       delayLongPress={350}
       style={styles.card}
       accessibilityRole="button"
-      accessibilityLabel={`Finding ${severityFrLabels[finding.severity] || finding.severity}, ${finding.title}, fichier ${fileShort} ligne ${startLine}`}
+      accessibilityLabel={t('findingsCardA11yLabel', { severity: severityLabel, title: finding.title, file: fileShort, line: startLine })}
       accessibilityState={{ expanded }}
     >
       <View style={styles.cardHeader}>
@@ -83,7 +88,9 @@ const FindingCard = ({
         <View style={styles.categoryBadge}>
           <Icon name={catIcon} size={13} color={colors.text} />
           <Text style={styles.categoryBadgeText}>
-            {categoryLabels[finding.category] || finding.category}
+            {categoryLabelKeys[finding.category]
+              ? t(categoryLabelKeys[finding.category])
+              : finding.category}
           </Text>
         </View>
 
@@ -136,7 +143,7 @@ const FindingCard = ({
               accessibilityRole="button"
             >
               <Icon name="comment" size={18} color={colors.accent} />
-              <Text style={styles.actionBtnText}>Commenter</Text>
+              <Text style={styles.actionBtnText}>{t('findingsActionComment')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionBtn}
@@ -144,7 +151,7 @@ const FindingCard = ({
               accessibilityRole="button"
             >
               <Icon name="compare-arrows" size={18} color={colors.accent} />
-              <Text style={styles.actionBtnText}>Voir le diff</Text>
+              <Text style={styles.actionBtnText}>{t('findingsActionViewDiff')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionBtn}
@@ -152,7 +159,7 @@ const FindingCard = ({
               accessibilityRole="button"
             >
               <Icon name="done" size={18} color={colors.accent} />
-              <Text style={styles.actionBtnText}>Marquer vu</Text>
+              <Text style={styles.actionBtnText}>{t('findingsActionMarkSeen')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -176,6 +183,7 @@ const FilterChip = ({ label, active, count, onPress, styles }) => (
 );
 
 const QuickActionsMenu = ({ finding, visible, onClose, onComment, onViewDiff, onMarkSeen, styles, colors }) => {
+  const { t } = useTranslation();
   if (!finding) return null;
   return (
     <Modal
@@ -195,7 +203,7 @@ const QuickActionsMenu = ({ finding, visible, onClose, onComment, onViewDiff, on
             accessibilityRole="button"
           >
             <Icon name="comment" size={20} color={colors.accent} />
-            <Text style={styles.quickMenuItemText}>Commenter</Text>
+            <Text style={styles.quickMenuItemText}>{t('findingsActionComment')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.quickMenuItem}
@@ -203,7 +211,7 @@ const QuickActionsMenu = ({ finding, visible, onClose, onComment, onViewDiff, on
             accessibilityRole="button"
           >
             <Icon name="compare-arrows" size={20} color={colors.accent} />
-            <Text style={styles.quickMenuItemText}>Voir le diff</Text>
+            <Text style={styles.quickMenuItemText}>{t('findingsActionViewDiff')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.quickMenuItem}
@@ -211,7 +219,7 @@ const QuickActionsMenu = ({ finding, visible, onClose, onComment, onViewDiff, on
             accessibilityRole="button"
           >
             <Icon name="visibility-off" size={20} color={colors.textMuted} />
-            <Text style={[styles.quickMenuItemText, { color: colors.textMuted }]}>Ignorer</Text>
+            <Text style={[styles.quickMenuItemText, { color: colors.textMuted }]}>{t('findingsActionIgnore')}</Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>
@@ -226,6 +234,7 @@ const FindingsList = ({
   onViewDiff,
   onMarkSeen,
 }) => {
+  const { t } = useTranslation();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
   const [filter, setFilter] = useState(initialFilter);
@@ -283,15 +292,15 @@ const FindingsList = ({
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Rechercher (ruleId, titre)…"
+          placeholder={t('findingsSearchPlaceholder')}
           placeholderTextColor={colors.textFaint}
           style={styles.searchInput}
-          accessibilityLabel="Rechercher un finding"
+          accessibilityLabel={t('findingsSearchA11yLabel')}
         />
         {query.length > 0 && (
           <TouchableOpacity
             onPress={() => setQuery('')}
-            accessibilityLabel="Effacer la recherche"
+            accessibilityLabel={t('findingsClearSearchA11yLabel')}
             style={styles.searchClearBtn}
           >
             <Icon name="close" size={18} color={colors.textMuted} />
@@ -305,11 +314,11 @@ const FindingsList = ({
         contentContainerStyle={styles.chipsRow}
         style={styles.chipsScroll}
       >
-        <FilterChip styles={styles} label="Tous" active={filter === 'ALL'} count={findings.length} onPress={() => setFilter('ALL')} />
-        <FilterChip styles={styles} label="Critique" active={filter === 'CRITICAL'} count={countBySeverity('CRITICAL')} onPress={() => setFilter('CRITICAL')} />
-        <FilterChip styles={styles} label="Élevé" active={filter === 'HIGH'} count={countBySeverity('HIGH')} onPress={() => setFilter('HIGH')} />
-        <FilterChip styles={styles} label="Moyen" active={filter === 'MED'} count={countBySeverity('MED')} onPress={() => setFilter('MED')} />
-        <FilterChip styles={styles} label="Faible" active={filter === 'LOW'} count={countBySeverity('LOW')} onPress={() => setFilter('LOW')} />
+        <FilterChip styles={styles} label={t('findingsFilterAll')} active={filter === 'ALL'} count={findings.length} onPress={() => setFilter('ALL')} />
+        <FilterChip styles={styles} label={t('findingsSeverityCritical')} active={filter === 'CRITICAL'} count={countBySeverity('CRITICAL')} onPress={() => setFilter('CRITICAL')} />
+        <FilterChip styles={styles} label={t('findingsSeverityHigh')} active={filter === 'HIGH'} count={countBySeverity('HIGH')} onPress={() => setFilter('HIGH')} />
+        <FilterChip styles={styles} label={t('findingsSeverityMed')} active={filter === 'MED'} count={countBySeverity('MED')} onPress={() => setFilter('MED')} />
+        <FilterChip styles={styles} label={t('findingsSeverityLow')} active={filter === 'LOW'} count={countBySeverity('LOW')} onPress={() => setFilter('LOW')} />
         <View style={styles.chipSeparator} />
         <FilterChip styles={styles} label="SECURITY" active={filter === 'SECURITY'} count={countByCategory('SECURITY')} onPress={() => setFilter('SECURITY')} />
         <FilterChip styles={styles} label="BUG" active={filter === 'BUG'} count={countByCategory('BUG')} onPress={() => setFilter('BUG')} />
@@ -321,8 +330,8 @@ const FindingsList = ({
           <Icon name="verified" size={40} color="#66BB6A" />
           <Text style={styles.emptyText}>
             {findings.length === 0
-              ? 'Aucun problème détecté'
-              : 'Aucun résultat pour ces filtres'}
+              ? t('findingsEmptyNoIssues')
+              : t('findingsEmptyNoResults')}
           </Text>
         </View>
       ) : (

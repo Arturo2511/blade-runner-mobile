@@ -18,6 +18,7 @@ import {
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
 import { useTheme } from '../services/theme';
+import { useTranslation } from 'react-i18next';
 
 const AUTO_COLLAPSE_THRESHOLD = 8;
 const MAX_VISIBLE_LINES = 20;
@@ -60,13 +61,14 @@ const normaliseIndent = (raw) => {
 };
 
 const FindingBadge = ({ count, onPress, severity, styles }) => {
+  const { t } = useTranslation();
   if (!count) return null;
   const bg = severity === 'critical' ? '#B71C1C' : FINDING_RED;
   return (
     <TouchableOpacity
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${count} problème${count > 1 ? 's' : ''} détecté${count > 1 ? 's' : ''} sur cette ligne`}
+      accessibilityLabel={t('diffFindingBadgeLabel', { count })}
       hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
       style={[styles.findingBadge, { backgroundColor: bg }]}
     >
@@ -87,6 +89,7 @@ const DiffLine = React.memo(function DiffLine({
   isFocusLine,
   focusLineRef,
 }) {
+  const { t } = useTranslation();
   const c = lineColors[line.type] || lineColors.context;
   const findingCount = findings ? findings.length : 0;
   const topSeverity =
@@ -96,10 +99,10 @@ const DiffLine = React.memo(function DiffLine({
 
   const a11yType =
     line.type === 'add'
-      ? 'ajoutée'
+      ? t('diffLineTypeAdd')
       : line.type === 'remove'
-      ? 'supprimée'
-      : 'contexte';
+      ? t('diffLineTypeRemove')
+      : t('diffLineTypeContext');
 
   return (
     <Pressable
@@ -107,9 +110,14 @@ const DiffLine = React.memo(function DiffLine({
       onLongPress={() => onCommentLine && onCommentLine(hunk, line, idx)}
       delayLongPress={350}
       accessibilityRole="button"
-      accessibilityLabel={`Ligne ${a11yType}${
-        line.lineNumber ? ` numéro ${line.lineNumber}` : ''
-      }. Appui long pour commenter.`}
+      accessibilityLabel={
+        line.lineNumber
+          ? t('diffLineLabelWithNumber', {
+              type: a11yType,
+              number: line.lineNumber,
+            })
+          : t('diffLineLabel', { type: a11yType })
+      }
       style={({ pressed }) => [
         styles.line,
         { backgroundColor: c.bg },
@@ -152,6 +160,7 @@ const HunkBlock = ({
   focusLine,
   focusLineRef,
 }) => {
+  const { t } = useTranslation();
   const autoCollapse = hunk.lines.length > AUTO_COLLAPSE_THRESHOLD;
   const containsFocus =
     focusLine != null && hunk.lines.some((l) => l.lineNumber === focusLine);
@@ -185,7 +194,10 @@ const HunkBlock = ({
       <TouchableOpacity
         onPress={() => setCollapsed((v) => !v)}
         accessibilityRole="button"
-        accessibilityLabel={`Hunk ligne ${hunk.oldStart}. ${effectiveCollapsed ? 'Déplier' : 'Replier'}.`}
+        accessibilityLabel={t('diffHunkLabel', {
+          line: hunk.oldStart,
+          action: effectiveCollapsed ? t('diffExpand') : t('diffCollapse'),
+        })}
         accessibilityState={{ expanded: !effectiveCollapsed }}
         style={styles.hunkHeader}
       >
@@ -232,12 +244,12 @@ const HunkBlock = ({
             <TouchableOpacity
               onPress={() => setShowAll(true)}
               accessibilityRole="button"
-              accessibilityLabel={`Afficher ${hiddenCount} lignes supplémentaires`}
+              accessibilityLabel={t('diffShowMoreLabel', { count: hiddenCount })}
               style={styles.showMore}
             >
               <Icon name="unfold-more" size={18} color={colors.accent} />
               <Text style={styles.showMoreText}>
-                Afficher {hiddenCount} ligne{hiddenCount > 1 ? 's' : ''} de plus
+                {t('diffShowMoreText', { count: hiddenCount })}
               </Text>
             </TouchableOpacity>
           )}
@@ -260,6 +272,7 @@ const FileBlock = ({
   colors,
   lineColors,
 }) => {
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const lastTap = useRef(0);
 
@@ -316,7 +329,11 @@ const FileBlock = ({
     <Pressable
       onPress={handleDoubleTap}
       accessibilityRole="button"
-      accessibilityLabel={`Fichier ${fileNameOf(path)}. Double-tap pour ${collapsed ? 'déplier' : 'replier'} le fichier.`}
+      accessibilityLabel={
+        collapsed
+          ? t('diffFileLabelExpand', { name: fileNameOf(path) })
+          : t('diffFileLabelCollapse', { name: fileNameOf(path) })
+      }
       style={styles.fileHeader}
     >
       <Icon name="description" size={20} color={colors.accent} />
@@ -336,7 +353,7 @@ const FileBlock = ({
         onPress={() => setCollapsed((v) => !v)}
         accessibilityRole="button"
         accessibilityLabel={
-          collapsed ? 'Déplier tout le fichier' : 'Replier tout le fichier'
+          collapsed ? t('diffFileExpandAll') : t('diffFileCollapseAll')
         }
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         style={styles.fileCollapseBtn}
@@ -380,7 +397,7 @@ const FileBlock = ({
         <View style={styles.fileCollapsedNote}>
           <Icon name="visibility-off" size={14} color={colors.textFaint} />
           <Text style={styles.fileCollapsedText}>
-            Fichier replié — double-tap pour déplier
+            {t('diffFileCollapsedNote')}
           </Text>
         </View>
       )}
@@ -398,6 +415,7 @@ const MobileDiffView = ({
   focusLine,
   onClearFocus,
 }) => {
+  const { t } = useTranslation();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
   const lineColors = useMemo(() => getLineColors(colors, isDark), [colors, isDark]);
@@ -470,24 +488,24 @@ const MobileDiffView = ({
             <View style={styles.focusBanner}>
               <Icon name="my-location" size={14} color={colors.accent} />
               <Text style={styles.focusText} numberOfLines={1}>
-                Focus : {focusFileName}
-                {focusLine ? ` · ligne ${focusLine}` : ''}
+                {t('diffFocus', { name: focusFileName })}
+                {focusLine ? t('diffFocusLineSuffix', { line: focusLine }) : ''}
               </Text>
               <TouchableOpacity
                 onPress={onClearFocus}
                 style={styles.focusClearBtn}
-                accessibilityLabel="Voir tous les fichiers"
+                accessibilityLabel={t('diffViewAllFiles')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={styles.focusClearText}>Tout voir</Text>
+                <Text style={styles.focusClearText}>{t('diffShowAll')}</Text>
               </TouchableOpacity>
             </View>
           ) : null}
           <View style={styles.hint}>
             <Icon name="touch-app" size={14} color={colors.textFaint} />
             <Text style={styles.hintText}>
-              Appui long: commenter · Double-tap fichier: replier
-              {onNavigateFile ? ' · Swipe en-tête: fichier ←/→' : ''}
+              {t('diffHintBase')}
+              {onNavigateFile ? t('diffHintSwipe') : ''}
             </Text>
           </View>
         </View>
@@ -495,7 +513,7 @@ const MobileDiffView = ({
         {entries.length === 0 ? (
           <View style={styles.empty}>
             <Icon name="compare-arrows" size={40} color={colors.textFaint} />
-            <Text style={styles.emptyText}>Aucune modification</Text>
+            <Text style={styles.emptyText}>{t('diffEmpty')}</Text>
           </View>
         ) : (
           entries.map(([path, hunksOfFile]) => (

@@ -5,6 +5,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { qualityGateColors, severityColors } from '../data/reviewColors';
 import { useTheme } from '../services/theme';
 
@@ -51,6 +52,7 @@ const MetricCard = ({
   accessibilityLabel,
   styles,
 }) => {
+  const { t } = useTranslation();
   const Container = onPress ? TouchableOpacity : View;
   return (
     <Container
@@ -59,7 +61,7 @@ const MetricCard = ({
       style={styles.card}
       accessibilityRole={onPress ? 'button' : 'summary'}
       accessibilityLabel={accessibilityLabel || `${label} ${value}`}
-      accessibilityHint={onPress ? 'Appuyer pour voir le détail' : undefined}
+      accessibilityHint={onPress ? t('metricsCardHint') : undefined}
     >
       <Icon name={icon} size={26} color={color} />
       <View style={styles.cardText}>
@@ -74,6 +76,7 @@ const MetricCard = ({
 };
 
 const MetricsDashboard = ({ summary, onMetricPress }) => {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -102,14 +105,14 @@ const MetricsDashboard = ({ summary, onMetricPress }) => {
           { backgroundColor: gateColor + '22', borderColor: gateColor },
         ]}
         accessibilityRole={onMetricPress ? 'button' : 'summary'}
-        accessibilityLabel={`Quality Gate ${gateTxt}`}
+        accessibilityLabel={t('metricsQualityGateA11y', { status: gateTxt })}
       >
         <View style={styles.gateTextBlock}>
-          <Text style={styles.gateTitle}>QUALITY GATE</Text>
+          <Text style={styles.gateTitle}>{t('metricsQualityGateTitle')}</Text>
           <Text style={[styles.gateValue, { color: gateColor }]}>{gateTxt}</Text>
           {typeof summary.criticalFindings === 'number' && (
             <Text style={styles.gateSubtitle}>
-              {summary.criticalFindings} finding{summary.criticalFindings > 1 ? 's' : ''} critique{summary.criticalFindings > 1 ? 's' : ''}
+              {t('metricsCriticalFindings', { n: summary.criticalFindings })}
             </Text>
           )}
         </View>
@@ -122,21 +125,21 @@ const MetricsDashboard = ({ summary, onMetricPress }) => {
           styles={styles}
           metricKey="securityHotspots"
           icon="whatshot"
-          label="Hotspots"
+          label={t('metricsHotspots')}
           value={summary.securityHotspots ?? 0}
           color={colorForHotspots(summary.securityHotspots ?? 0)}
           onPress={onMetricPress}
-          accessibilityLabel={`${summary.securityHotspots ?? 0} hotspots de sécurité`}
+          accessibilityLabel={t('metricsHotspotsA11y', { n: summary.securityHotspots ?? 0 })}
         />
         <MetricCard
           styles={styles}
           metricKey="vulnerabilities"
           icon="security"
-          label="Vulnérabilités"
+          label={t('metricsVulnerabilities')}
           value={summary.vulnerabilities ?? 0}
           color={colorForVulns(summary.vulnerabilities ?? 0)}
           onPress={onMetricPress}
-          accessibilityLabel={`${summary.vulnerabilities ?? 0} vulnérabilités`}
+          accessibilityLabel={t('metricsVulnerabilitiesA11y', { n: summary.vulnerabilities ?? 0 })}
         />
       </View>
 
@@ -146,21 +149,21 @@ const MetricsDashboard = ({ summary, onMetricPress }) => {
           styles={styles}
           metricKey="bugs"
           icon="bug-report"
-          label="Bugs"
+          label={t('metricsBugs')}
           value={summary.bugs ?? 0}
           color={colorForBugs(summary.bugs ?? 0)}
           onPress={onMetricPress}
-          accessibilityLabel={`${summary.bugs ?? 0} bugs`}
+          accessibilityLabel={t('metricsBugsA11y', { n: summary.bugs ?? 0 })}
         />
         <MetricCard
           styles={styles}
           metricKey="codeSmells"
           icon="auto-fix-high"
-          label="Code smells"
+          label={t('metricsCodeSmells')}
           value={summary.codeSmells ?? 0}
           color={colorForSmells(summary.codeSmells ?? 0)}
           onPress={onMetricPress}
-          accessibilityLabel={`${summary.codeSmells ?? 0} code smells`}
+          accessibilityLabel={t('metricsCodeSmellsA11y', { n: summary.codeSmells ?? 0 })}
         />
       </View>
 
@@ -170,7 +173,7 @@ const MetricsDashboard = ({ summary, onMetricPress }) => {
           styles={styles}
           metricKey="coverage"
           icon="analytics"
-          label="Coverage"
+          label={t('metricsCoverage')}
           value={
             summary.coverage != null
               ? `${Number(summary.coverage).toFixed(1)}%`
@@ -183,7 +186,7 @@ const MetricsDashboard = ({ summary, onMetricPress }) => {
           styles={styles}
           metricKey="impactedFiles"
           icon="folder-open"
-          label="Fichiers"
+          label={t('metricsFiles')}
           value={summary.impactedFilesCount ?? 0}
           subtitle={`+${summary.linesAdded ?? 0} / -${summary.linesRemoved ?? 0}`}
           color={colors.accent}
@@ -197,7 +200,7 @@ const MetricsDashboard = ({ summary, onMetricPress }) => {
             styles={styles}
             metricKey="complexity"
             icon="timeline"
-            label="Complexité cyclomatique"
+            label={t('metricsComplexity')}
             value={summary.complexity}
             color={colorForComplexity(summary.complexity, colors.accent)}
             onPress={onMetricPress}

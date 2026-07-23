@@ -9,6 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { severityColors } from '../data/reviewColors';
 import { useTheme } from '../services/theme';
 
@@ -31,6 +32,7 @@ const findingsForFile = (findings, filePath) =>
   (findings || []).filter((f) => f.location?.filePath === filePath);
 
 const MiniMap = ({ files = [], findings = [], focusFilePath, onOpenDiff }) => {
+  const { t } = useTranslation();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
 
@@ -59,11 +61,10 @@ const MiniMap = ({ files = [], findings = [], focusFilePath, onOpenDiff }) => {
       <View style={styles.emptyWrap}>
         <Icon name="map" size={40} color={colors.textFaint} />
         <Text style={styles.emptyText}>
-          Aucune minimap disponible pour cette PR.
+          {t('minimapEmpty')}
         </Text>
         <Text style={styles.emptySub}>
-          Les fichiers doivent fournir une silhouette ({'`'}diffLines{'`'} +{' '}
-          {'`'}totalLines{'`'}) pour apparaître ici.
+          {t('minimapEmptySub')}
         </Text>
       </View>
     );
@@ -118,7 +119,7 @@ const MiniMap = ({ files = [], findings = [], focusFilePath, onOpenDiff }) => {
     <View style={styles.container}>
       {/* Sélecteur de fichier — chips horizontales */}
       <View style={styles.filePickerWrap}>
-        <Text style={styles.sectionLabel}>FICHIER</Text>
+        <Text style={styles.sectionLabel}>{t('minimapSectionFile')}</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -134,7 +135,7 @@ const MiniMap = ({ files = [], findings = [], focusFilePath, onOpenDiff }) => {
                   setSelectedIdx(i);
                   setHighlightLine(null);
                 }}
-                accessibilityLabel={`Fichier ${fileName(f.path)}`}
+                accessibilityLabel={t('minimapFileA11y', { name: fileName(f.path) })}
                 accessibilityState={{ selected: isActive }}
                 style={[
                   styles.fileChip,
@@ -176,7 +177,7 @@ const MiniMap = ({ files = [], findings = [], focusFilePath, onOpenDiff }) => {
           {/* MINIMAP */}
           <View
             style={[styles.mapCanvas, { width: MAP_WIDTH + GUTTER_WIDTH, height: mapHeight }]}
-            accessibilityLabel="Silhouette du fichier"
+            accessibilityLabel={t('minimapCanvasA11y')}
           >
             {/* 1. Couche structure (bordure latérale par bloc) */}
             {(active.structure || []).map((s, idx) => {
@@ -273,8 +274,8 @@ const MiniMap = ({ files = [], findings = [], focusFilePath, onOpenDiff }) => {
                 );
                 handleMapPress(line);
               }}
-              accessibilityLabel="Zone de navigation dans la minimap"
-              accessibilityHint="Tap pour positionner, double-tap pour ouvrir le diff"
+              accessibilityLabel={t('minimapTapLayerA11y')}
+              accessibilityHint={t('minimapTapLayerHint')}
             />
 
             {/* Règle latérale : numéros de ligne repères (chaque 20) */}
@@ -299,30 +300,30 @@ const MiniMap = ({ files = [], findings = [], focusFilePath, onOpenDiff }) => {
 
           {/* PANEL D'INFO */}
           <View style={styles.infoPanel}>
-            <Text style={styles.sectionLabel}>LÉGENDE</Text>
+            <Text style={styles.sectionLabel}>{t('minimapSectionLegend')}</Text>
             <View style={styles.legendRow}>
               <View style={[styles.legendDot, { backgroundColor: '#66BB6A' }]} />
-              <Text style={styles.legendText}>Ligne ajoutée</Text>
+              <Text style={styles.legendText}>{t('minimapLegendAdded')}</Text>
             </View>
             <View style={styles.legendRow}>
               <View style={[styles.legendDot, { backgroundColor: '#E53935' }]} />
-              <Text style={styles.legendText}>Ligne supprimée</Text>
+              <Text style={styles.legendText}>{t('minimapLegendRemoved')}</Text>
             </View>
             <View style={styles.legendRow}>
               <View style={[styles.legendDot, { backgroundColor: colors.textFaint }]} />
-              <Text style={styles.legendText}>Contexte</Text>
+              <Text style={styles.legendText}>{t('minimapLegendContext')}</Text>
             </View>
             <View style={styles.legendRow}>
               <View style={[styles.legendDot, { backgroundColor: severityColors.CRITICAL }]} />
-              <Text style={styles.legendText}>Finding (marqueur)</Text>
+              <Text style={styles.legendText}>{t('minimapLegendFinding')}</Text>
             </View>
 
             <View style={styles.divider} />
 
-            <Text style={styles.sectionLabel}>POSITION</Text>
+            <Text style={styles.sectionLabel}>{t('minimapSectionPosition')}</Text>
             {highlightLine ? (
               <>
-                <Text style={styles.posLine}>Ligne {highlightLine} / {active.totalLines}</Text>
+                <Text style={styles.posLine}>{t('minimapLine', { n: highlightLine, total: active.totalLines })}</Text>
                 {selectedStructure ? (
                   <View style={styles.structureRow}>
                     <Icon
@@ -350,18 +351,17 @@ const MiniMap = ({ files = [], findings = [], focusFilePath, onOpenDiff }) => {
               </>
             ) : (
               <Text style={styles.hintText}>
-                Tap sur la silhouette pour positionner.{'\n'}
-                Double-tap pour ouvrir le diff à cet endroit.
+                {t('minimapHint')}
               </Text>
             )}
 
             <View style={styles.divider} />
 
             <Text style={styles.sectionLabel}>
-              FINDINGS ({activeFindings.length})
+              {t('minimapSectionFindings', { count: activeFindings.length })}
             </Text>
             {activeFindings.length === 0 ? (
-              <Text style={styles.hintText}>Aucun finding sur ce fichier.</Text>
+              <Text style={styles.hintText}>{t('minimapNoFindings')}</Text>
             ) : (
               activeFindings.slice(0, 3).map((f) => (
                 <TouchableOpacity
@@ -376,7 +376,7 @@ const MiniMap = ({ files = [], findings = [], focusFilePath, onOpenDiff }) => {
                     ]}
                   />
                   <Text style={styles.miniFindingText} numberOfLines={2}>
-                    L.{f.location?.startLine} · {f.title}
+                    {t('minimapFindingLine', { line: f.location?.startLine, title: f.title })}
                   </Text>
                 </TouchableOpacity>
               ))
@@ -388,15 +388,15 @@ const MiniMap = ({ files = [], findings = [], focusFilePath, onOpenDiff }) => {
       {highlightLine ? (
         <View style={styles.pinnedBar}>
           <Text style={styles.pinnedLine} numberOfLines={1}>
-            Ligne {highlightLine} / {active.totalLines}
+            {t('minimapLine', { n: highlightLine, total: active.totalLines })}
           </Text>
           <TouchableOpacity
             style={styles.pinnedBtn}
             onPress={() => onOpenDiff?.(active, highlightLine)}
-            accessibilityLabel="Ouvrir le diff à cette position"
+            accessibilityLabel={t('minimapOpenDiffA11y')}
           >
             <Icon name="compare-arrows" size={16} color="#FFF" />
-            <Text style={styles.openDiffBtnText}>Voir le diff</Text>
+            <Text style={styles.openDiffBtnText}>{t('minimapViewDiff')}</Text>
           </TouchableOpacity>
         </View>
       ) : null}

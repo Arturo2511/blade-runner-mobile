@@ -18,6 +18,7 @@ import {
   GestureHandlerRootView,
   State,
 } from 'react-native-gesture-handler';
+import { useTranslation } from 'react-i18next';
 import { severityColors } from '../data/reviewColors';
 import { useTheme } from '../services/theme';
 
@@ -116,11 +117,12 @@ const treemap = (items, x, y, w, h, out = []) => {
 };
 
 const Tile = ({ block, onPress, onLongPress, compact, styles, isDark }) => {
+  const { t } = useTranslation();
   const { item, x, y, w, h } = block;
   const color = severityColors[item.severity] || severityColors.CLEAN;
   const label = item.isModule ? item.path : fileName(item.path);
   const sub = item.isModule
-    ? `${item.files.length} fichier${item.files.length > 1 ? 's' : ''}`
+    ? t('carteModuleFiles', { count: item.files.length })
     : folderOf(item.path);
   const showFooter = h >= 70;
   const showSub = h >= 54;
@@ -133,8 +135,19 @@ const Tile = ({ block, onPress, onLongPress, compact, styles, isDark }) => {
       accessibilityRole="button"
       accessibilityLabel={
         item.isModule
-          ? `Module ${item.path}, ${item.files.length} fichiers, sévérité ${item.severity}, ${item.findingsCount} findings`
-          : `Fichier ${fileName(item.path)}, sévérité ${item.severity}, ${item.linesAdded} ajouts ${item.linesRemoved} retraits, ${item.findingsCount} findings`
+          ? t('carteTileModuleLabel', {
+              path: item.path,
+              count: item.files.length,
+              severity: item.severity,
+              findings: item.findingsCount,
+            })
+          : t('carteTileFileLabel', {
+              name: fileName(item.path),
+              severity: item.severity,
+              added: item.linesAdded,
+              removed: item.linesRemoved,
+              findings: item.findingsCount,
+            })
       }
       android_ripple={{ color: color + '55' }}
       style={({ pressed }) => [
@@ -178,7 +191,7 @@ const Tile = ({ block, onPress, onLongPress, compact, styles, isDark }) => {
       )}
 
       {item.aiHighlight && (
-        <View style={styles.aiFlash} accessibilityLabel="Suggestion IA">
+        <View style={styles.aiFlash} accessibilityLabel={t('carteAiSuggestion')}>
           <Icon name="auto-awesome" size={12} color="#1E1E1E" />
         </View>
       )}
@@ -187,6 +200,7 @@ const Tile = ({ block, onPress, onLongPress, compact, styles, isDark }) => {
 };
 
 const Tooltip = ({ item, onClose, styles, colors }) => {
+  const { t } = useTranslation();
   if (!item) return null;
   const color = severityColors[item.severity] || severityColors.CLEAN;
   return (
@@ -198,30 +212,30 @@ const Tooltip = ({ item, onClose, styles, colors }) => {
             {item.isModule ? item.path : item.path}
           </Text>
           <Text style={styles.tooltipRow}>
-            <Text style={styles.tooltipKey}>Sévérité : </Text>
+            <Text style={styles.tooltipKey}>{t('carteSeverityLabel')}</Text>
             <Text style={{ color }}>{item.severity}</Text>
           </Text>
           <Text style={styles.tooltipRow}>
-            <Text style={styles.tooltipKey}>Findings : </Text>
+            <Text style={styles.tooltipKey}>{t('carteFindingsLabel')}</Text>
             {item.findingsCount}
           </Text>
           <Text style={styles.tooltipRow}>
-            <Text style={styles.tooltipKey}>Complexité : </Text>
+            <Text style={styles.tooltipKey}>{t('carteComplexityLabel')}</Text>
             {item.complexity ?? '—'}
           </Text>
           <Text style={styles.tooltipRow}>
-            <Text style={styles.tooltipKey}>Lignes : </Text>
+            <Text style={styles.tooltipKey}>{t('carteLinesLabel')}</Text>
             +{item.linesAdded} / -{item.linesRemoved}
           </Text>
           {item.aiHighlight && (
             <View style={styles.tooltipAi}>
               <Icon name="auto-awesome" size={14} color="#FDD835" />
               <Text style={styles.tooltipAiText}>
-                Suggestion IA disponible
+                {t('carteAiSuggestionAvailable')}
               </Text>
             </View>
           )}
-          <Text style={styles.tooltipHint}>Touchez hors du cadre pour fermer</Text>
+          <Text style={styles.tooltipHint}>{t('carteTooltipHint')}</Text>
         </View>
       </Pressable>
     </Modal>
@@ -229,6 +243,7 @@ const Tooltip = ({ item, onClose, styles, colors }) => {
 };
 
 const CodeCityView = ({ files = [], onFilePress }) => {
+  const { t } = useTranslation();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [level, setLevel] = useState(LEVEL.MODULES);
@@ -314,7 +329,7 @@ const CodeCityView = ({ files = [], onFilePress }) => {
     return (
       <View style={styles.empty}>
         <Icon name="layers-clear" size={40} color={colors.textFaint} />
-        <Text style={styles.emptyText}>Aucun fichier impacté</Text>
+        <Text style={styles.emptyText}>{t('carteEmpty')}</Text>
       </View>
     );
   }
@@ -326,9 +341,9 @@ const CodeCityView = ({ files = [], onFilePress }) => {
         showsVerticalScrollIndicator
       >
         <View style={styles.headerBlock}>
-          <Text style={styles.title}>Carte des fichiers modifiés</Text>
+          <Text style={styles.title}>{t('carteTitle')}</Text>
           <Text style={styles.subtitle}>
-            Taille = lignes touchées · Couleur = sévérité
+            {t('carteSubtitle')}
           </Text>
           <View style={styles.levelRow}>
             <Pressable
@@ -345,7 +360,7 @@ const CodeCityView = ({ files = [], onFilePress }) => {
                 color={level === LEVEL.MODULES ? '#fff' : colors.textMuted}
               />
               <Text style={[styles.levelBtnText, level === LEVEL.MODULES && styles.levelBtnTextActive]}>
-                Modules
+                {t('carteModules')}
               </Text>
             </Pressable>
             <Pressable
@@ -359,10 +374,10 @@ const CodeCityView = ({ files = [], onFilePress }) => {
                 color={level === LEVEL.FILES ? '#fff' : colors.textMuted}
               />
               <Text style={[styles.levelBtnText, level === LEVEL.FILES && styles.levelBtnTextActive]}>
-                Fichiers
+                {t('carteFiles')}
               </Text>
             </Pressable>
-            <Text style={styles.levelHint}>· pinch pour zoomer</Text>
+            <Text style={styles.levelHint}>{t('carteZoomHint')}</Text>
           </View>
         </View>
 
@@ -396,7 +411,7 @@ const CodeCityView = ({ files = [], onFilePress }) => {
                 key={sev}
                 onPress={() => toggleSeverity(sev)}
                 accessibilityRole="button"
-                accessibilityLabel={`Filtrer ${sev}, ${muted ? 'masqué' : 'visible'}`}
+                accessibilityLabel={muted ? t('carteFilterHidden', { sev }) : t('carteFilterVisible', { sev })}
                 style={({ pressed }) => [
                   styles.legendItem,
                   muted && styles.legendItemMuted,

@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { severityColors } from '../data/reviewColors';
 import { useTheme } from '../services/theme';
 
@@ -28,6 +29,7 @@ function reachableFrom(startIds, outEdges) {
 }
 
 const DependencyGraph = ({ graph }) => {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -118,7 +120,7 @@ const DependencyGraph = ({ graph }) => {
     return (
       <View style={styles.emptyWrap}>
         <Icon name="hub" size={40} color={colors.textFaint} />
-        <Text style={styles.emptyText}>Aucun graphe d'appels pour cette PR.</Text>
+        <Text style={styles.emptyText}>{t('graphEmpty')}</Text>
       </View>
     );
   }
@@ -127,11 +129,8 @@ const DependencyGraph = ({ graph }) => {
     return (
       <View style={styles.emptyWrap}>
         <Icon name="account-tree" size={40} color={colors.textFaint} />
-        <Text style={styles.emptyText}>Graphe d'appels indisponible</Text>
-        <Text style={styles.emptySubText}>
-          L'analyse approfondie (CodeQL) a échoué ou n'a pas pu s'exécuter pour
-          cette PR. Relance l'analyse pour réessayer.
-        </Text>
+        <Text style={styles.emptyText}>{t('graphUnavailable')}</Text>
+        <Text style={styles.emptySubText}>{t('graphAnalysisFailed')}</Text>
       </View>
     );
   }
@@ -141,10 +140,13 @@ const DependencyGraph = ({ graph }) => {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>Graphe d'appels</Text>
+            <Text style={styles.title}>{t('graphTitle')}</Text>
             <Text style={styles.subtitle}>
-              {impactedIds.length} modifiées · {atRiskIds.size} appelantes au risque ·{' '}
-              {nodes.length} total
+              {t('graphSubtitle', {
+                modified: impactedIds.length,
+                atRisk: atRiskIds.size,
+                total: nodes.length,
+              })}
             </Text>
           </View>
           {history.length > 0 ? (
@@ -153,17 +155,17 @@ const DependencyGraph = ({ graph }) => {
               hitSlop={10}
               style={styles.backBtn}
               accessibilityRole="button"
-              accessibilityLabel="Revenir au nœud précédent"
+              accessibilityLabel={t('graphBackLabel')}
             >
               <Icon name="arrow-back" size={16} color={colors.accent} />
-              <Text style={styles.backText}>Retour</Text>
+              <Text style={styles.backText}>{t('graphBack')}</Text>
             </Pressable>
           ) : null}
         </View>
 
         {impactedIds.length > 0 ? (
           <View style={styles.jumpWrap}>
-            <Text style={styles.sectionLabel}>ALLER À UNE MÉTHODE MODIFIÉE</Text>
+            <Text style={styles.sectionLabel}>{t('graphJumpToModified')}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -184,7 +186,7 @@ const DependencyGraph = ({ graph }) => {
         ) : null}
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>APPELÉ PAR ({callers.length})</Text>
+          <Text style={styles.sectionLabel}>{t('graphCalledBy', { count: callers.length })}</Text>
           {callers.length ? (
             <View style={styles.chipsWrap}>
               {callers.map((id) => (
@@ -198,7 +200,7 @@ const DependencyGraph = ({ graph }) => {
               ))}
             </View>
           ) : (
-            <Text style={styles.leafHint}>Aucune méthode analysée ne l'appelle.</Text>
+            <Text style={styles.leafHint}>{t('graphNoCallers')}</Text>
           )}
         </View>
 
@@ -221,7 +223,7 @@ const DependencyGraph = ({ graph }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>APPELLE ({callees.length})</Text>
+          <Text style={styles.sectionLabel}>{t('graphCalls', { count: callees.length })}</Text>
           {callees.length ? (
             <View style={styles.chipsWrap}>
               {callees.map((id) => (
@@ -235,47 +237,49 @@ const DependencyGraph = ({ graph }) => {
               ))}
             </View>
           ) : (
-            <Text style={styles.leafHint}>N'appelle aucune autre méthode analysée.</Text>
+            <Text style={styles.leafHint}>{t('graphNoCallees')}</Text>
           )}
         </View>
 
         <View style={styles.legend}>
-          <LegendItem styles={styles} color={colors.accent} label="Modifiée par la PR" />
-          <LegendItem styles={styles} color={AT_RISK} label="L'appelle (au risque)" />
-          <LegendItem styles={styles} color={colors.textFaint} label="Sans lien" />
+          <LegendItem styles={styles} color={colors.accent} label={t('graphLegendModified')} />
+          <LegendItem styles={styles} color={AT_RISK} label={t('graphLegendAtRisk')} />
+          <LegendItem styles={styles} color={colors.textFaint} label={t('graphLegendUnrelated')} />
         </View>
 
         <View style={styles.hint}>
           <Icon name="touch-app" size={14} color={colors.textFaint} />
-          <Text style={styles.hintText}>
-            Tape un voisin pour explorer le graphe de proche en proche.
-          </Text>
+          <Text style={styles.hintText}>{t('graphHint')}</Text>
         </View>
       </ScrollView>
     </View>
   );
 };
 
-const NeighborChip = ({ node, accent, active, onPress, styles }) => (
-  <Pressable
-    onPress={onPress}
-    hitSlop={4}
-    style={({ pressed }) => [
-      styles.chip,
-      active && styles.chipActive,
-      pressed && { opacity: 0.7 },
-    ]}
-    accessibilityRole="button"
-    accessibilityLabel={`Naviguer vers ${node ? node.label : ''}`}
-  >
-    <View style={[styles.chipDot, { backgroundColor: accent }]} />
-    <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
-      {node ? shortLabel(node.label) : ''}
-    </Text>
-  </Pressable>
-);
+const NeighborChip = ({ node, accent, active, onPress, styles }) => {
+  const { t } = useTranslation();
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={4}
+      style={({ pressed }) => [
+        styles.chip,
+        active && styles.chipActive,
+        pressed && { opacity: 0.7 },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={t('graphNavigateTo', { label: node ? node.label : '' })}
+    >
+      <View style={[styles.chipDot, { backgroundColor: accent }]} />
+      <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
+        {node ? shortLabel(node.label) : ''}
+      </Text>
+    </Pressable>
+  );
+};
 
 const FocusCard = ({ node, accent, atRisk, styles, colors }) => {
+  const { t } = useTranslation();
   if (!node) return null;
   return (
     <View style={[styles.focusCard, { borderColor: accent, backgroundColor: accent + '14' }]}>
@@ -299,22 +303,22 @@ const FocusCard = ({ node, accent, atRisk, styles, colors }) => {
       <View style={styles.focusMeta}>
         {node.isImpacted ? (
           <View style={[styles.badge, { backgroundColor: accent }]}>
-            <Text style={styles.badgeText}>MODIFIÉE</Text>
+            <Text style={styles.badgeText}>{t('graphBadgeModified')}</Text>
           </View>
         ) : atRisk ? (
           <View style={[styles.badge, { backgroundColor: AT_RISK }]}>
-            <Text style={styles.badgeText}>AU RISQUE</Text>
+            <Text style={styles.badgeText}>{t('graphBadgeAtRisk')}</Text>
           </View>
         ) : (
           <View style={[styles.badge, { backgroundColor: colors.textFaint }]}>
-            <Text style={styles.badgeText}>SAIN</Text>
+            <Text style={styles.badgeText}>{t('graphBadgeHealthy')}</Text>
           </View>
         )}
         {node.severity && node.severity !== 'CLEAN' ? (
           <Text style={[styles.focusSeverity, { color: accent }]}>{node.severity}</Text>
         ) : null}
         <Text style={styles.focusType}>
-          {node.type === 'class' ? 'classe' : 'fonction'}
+          {node.type === 'class' ? t('graphTypeClass') : t('graphTypeFunction')}
         </Text>
       </View>
     </View>
