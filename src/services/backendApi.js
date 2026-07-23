@@ -12,7 +12,7 @@
 
 import { BACKEND_CONFIG } from '../config/backend';
 import { parseSarif } from '../utils/sarifParser';
-import { parseDot } from '../utils/dotParser';
+import { parseDot, markImpacted } from '../utils/dotParser';
 import { getPullRequestFiles } from './githubApi';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -229,8 +229,9 @@ export async function enrichPrDetailWithBackend(prDetail, projectUrl, prId) {
     return { ...f, findingsCount };
   });
 
+  const impactedPaths = (prDetail.impactedFiles || []).map((f) => f.path);
   const callGraph = data.dotFile
-    ? parseDot(data.dotFile)
+    ? markImpacted(parseDot(data.dotFile), impactedPaths)
     : { nodes: [], edges: [] };
 
   const criticalFindings = findings.filter(

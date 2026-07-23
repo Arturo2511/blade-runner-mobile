@@ -33,12 +33,19 @@ export function parseDot(dotString) {
 }
 
 export function markImpacted(graph, impactedFilePaths = []) {
-  const impactedSet = new Set(impactedFilePaths.map((p) => p.toLowerCase()));
+  const paths = impactedFilePaths.map((p) => String(p || '').toLowerCase());
   const nodes = graph.nodes.map((n) => {
-    const matchesImpact = [...impactedSet].some((p) =>
-      n.label.toLowerCase().includes(p.toLowerCase())
+    const label = String(n.label || '').toLowerCase();
+    const lastDot = label.lastIndexOf('.');
+    const qualifiedClass = lastDot > 0 ? label.slice(0, lastDot) : label;
+    const classPath = qualifiedClass.replace(/\./g, '/');
+    const simpleClass = qualifiedClass.split('.').pop();
+    const isImpacted = paths.some(
+      (p) =>
+        (classPath.length > 2 && p.includes(classPath)) ||
+        (simpleClass.length > 2 && p.includes('/' + simpleClass + '.'))
     );
-    return { ...n, isImpacted: matchesImpact };
+    return { ...n, isImpacted };
   });
   return { nodes, edges: graph.edges };
 }

@@ -63,10 +63,10 @@ const DependencyGraph = ({ graph }) => {
   );
 
   const atRiskIds = useMemo(() => {
-    const reached = reachableFrom(impactedIds, outEdges);
+    const reached = reachableFrom(impactedIds, inEdges);
     impactedIds.forEach((id) => reached.delete(id));
     return reached;
-  }, [impactedIds, outEdges]);
+  }, [impactedIds, inEdges]);
 
   const accentFor = useCallback(
     (n) => {
@@ -116,7 +116,7 @@ const DependencyGraph = ({ graph }) => {
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>Graphe d'appels</Text>
             <Text style={styles.subtitle}>
-              {impactedIds.length} impactés · {atRiskIds.size} au risque ·{' '}
+              {impactedIds.length} modifiées · {atRiskIds.size} appelantes au risque ·{' '}
               {nodes.length} total
             </Text>
           </View>
@@ -136,7 +136,7 @@ const DependencyGraph = ({ graph }) => {
 
         {impactedIds.length > 0 ? (
           <View style={styles.jumpWrap}>
-            <Text style={styles.sectionLabel}>ALLER À UN NŒUD IMPACTÉ</Text>
+            <Text style={styles.sectionLabel}>ALLER À UNE MÉTHODE MODIFIÉE</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -213,10 +213,9 @@ const DependencyGraph = ({ graph }) => {
         </View>
 
         <View style={styles.legend}>
-          <LegendItem styles={styles} color={severityColors.CRITICAL} label="Impacté critique" />
-          <LegendItem styles={styles} color={colors.accent} label="Impacté" />
-          <LegendItem styles={styles} color={AT_RISK} label="Au risque" />
-          <LegendItem styles={styles} color={colors.textFaint} label="Sain" />
+          <LegendItem styles={styles} color={colors.accent} label="Modifiée par la PR" />
+          <LegendItem styles={styles} color={AT_RISK} label="L'appelle (au risque)" />
+          <LegendItem styles={styles} color={colors.textFaint} label="Sans lien" />
         </View>
 
         <View style={styles.hint}>
@@ -266,7 +265,7 @@ const FocusCard = ({ node, accent, atRisk, styles, colors }) => {
       <View style={styles.focusMeta}>
         {node.isImpacted ? (
           <View style={[styles.badge, { backgroundColor: accent }]}>
-            <Text style={styles.badgeText}>IMPACTÉ</Text>
+            <Text style={styles.badgeText}>MODIFIÉE</Text>
           </View>
         ) : atRisk ? (
           <View style={[styles.badge, { backgroundColor: AT_RISK }]}>
