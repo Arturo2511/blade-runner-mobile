@@ -28,15 +28,13 @@ import {
   hasGithubToken,
   buildPrDetailFromGithub,
   parsePrUrl,
-  postPrComment,
-  submitPrReview,
-  postReviewComment,
 } from '../services/githubApi';
 import {
   enrichPrDetailWithBackend,
   pingBackend,
 } from '../services/backendApi';
 import { startScan, isScanning, subscribeScans } from '../services/scanTracker';
+import { useTranslation } from 'react-i18next';
 
 const TABS = [
   { key: 'overview', label: 'Aperçu', icon: 'dashboard' },
@@ -77,6 +75,7 @@ const EMPTY_PR = {
 };
 
 const PullRequestScreen = ({ route, navigation }) => {
+  const { t } = useTranslation();
   const { prId, url, repository } = route?.params || {};
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -174,18 +173,6 @@ const PullRequestScreen = ({ route, navigation }) => {
     if (idx !== tabIndex) setTabIndex(idx);
   };
 
-  const reviewTarget = () => {
-    const [owner, repo] = String(pr.repository || '').split('/');
-    if (!owner || !repo || !pr.id) return null;
-    return { owner, repo, number: pr.id };
-  };
-
-  const notReal = () =>
-    Alert.alert(
-      'Mode démo',
-      'Connecte-toi à GitHub (hors mode démo) pour agir sur la vraie PR.'
-    );
-
   const prCoords = () => {
     const [owner, repo] = String(pr.repository || '').split('/');
     const number = parseInt(pr.id, 10);
@@ -229,94 +216,15 @@ const PullRequestScreen = ({ route, navigation }) => {
     return subscribeScans(sync);
   }, [pr.id, pr.repository]);
 
-  const handleApprove = () => {
-    Alert.alert('Approuver la PR', "Confirmer l'approbation ?", [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Approuver',
-        onPress: () =>
-          Alert.alert('Merci ! 🙏', 'Merci pour votre participation à ce test.'),
-      },
-    ]);
-  };
+  const showEvalNotice = () => Alert.alert(t('evalTitle'), t('evalMessage'));
 
-  const handleRequestChanges = () => {
-    const t = reviewTarget();
-    if (!t) return notReal();
-    if (!Alert.prompt) {
-      return Alert.alert('iOS requis', 'La saisie du commentaire est dispo sur iOS.');
-    }
-    Alert.prompt(
-      'Demander des modifications',
-      'Ton commentaire (obligatoire) :',
-      async (text) => {
-        if (!text || !text.trim()) return;
-        try {
-          await submitPrReview(t.owner, t.repo, t.number, 'REQUEST_CHANGES', text.trim());
-          Alert.alert('✓', 'Modifications demandées sur GitHub.');
-        } catch (e) {
-          Alert.alert('Échec', e?.message || 'Impossible.');
-        }
-      }
-    );
-  };
+  const handleApprove = () => showEvalNotice();
 
-  const handleComment = () => {
-    const t = reviewTarget();
-    if (!t) return notReal();
-    if (!Alert.prompt) {
-      return Alert.alert('iOS requis', 'La saisie du commentaire est dispo sur iOS.');
-    }
-    Alert.prompt('Commenter la PR', 'Ton commentaire :', async (text) => {
-      if (!text || !text.trim()) return;
-      try {
-        await postPrComment(t.owner, t.repo, t.number, text.trim());
-        Alert.alert('✓', 'Commentaire posté sur la PR.');
-      } catch (e) {
-        Alert.alert('Échec', e?.message || 'Impossible de poster.');
-      }
-    });
-  };
+  const handleRequestChanges = () => showEvalNotice();
 
-  const handleCommentFinding = (f) => {
-    const t = reviewTarget();
-    if (!t) return notReal();
-    const loc = f.location?.filePath
-      ? `${f.location.filePath}${f.location.startLine ? ':' + f.location.startLine : ''}`
-      : '';
-    const buildBody = (note) =>
-      `🔎 **[${f.category}] ${f.severity}** ${loc ? '`' + loc + '`' : ''}\n\n` +
-      `${f.title}` +
-      (f.ruleId ? `\n\n_Règle : ${f.ruleId}_` : '') +
-      (note && note.trim() ? `\n\n**Note du reviewer :** ${note.trim()}` : '') +
-      `\n\n<sub>via Blade Runner Mobile</sub>`;
-    const post = async (note) => {
-      try {
-        await postPrComment(t.owner, t.repo, t.number, buildBody(note));
-        Alert.alert('✓ Publié', 'Commentaire posté sur la PR.');
-      } catch (e) {
-        Alert.alert('Échec', e?.message || 'Impossible de poster.');
-      }
-    };
-    if (Alert.prompt) {
-      // Texte libre : le contexte du finding est affiché, tu ajoutes ta note.
-      Alert.prompt(
-        'Commenter ce finding',
-        `${f.category}/${f.severity} — ${loc}\n${f.title}`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Poster', onPress: (text) => post(text) },
-        ],
-        'plain-text'
-      );
-    } else {
-      // Android : pas de saisie inline → confirmation + commentaire structuré.
-      Alert.alert('Poster sur la PR ?', buildBody('').replace(/[*_`>]/g, '').slice(0, 300), [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Poster', onPress: () => post('') },
-      ]);
-    }
-  };
+  const handleComment = () => showEvalNotice();
+
+  const handleCommentFinding = () => showEvalNotice();
 
   // Tap sur un fichier (carte) → minimap sur ce fichier
   const handleFilePress = (file) => {
@@ -372,49 +280,7 @@ const PullRequestScreen = ({ route, navigation }) => {
     }
   };
 
-  const handleCommentLine = (hunk, line) => {
-    const t = reviewTarget();
-    if (!t) return notReal();
-    if (!line || line.lineNumber == null) {
-      return Alert.alert('Ligne non commentable', "Impossible d'ancrer un commentaire ici.");
-    }
-    if (!pr.headSha) {
-      return Alert.alert('Indisponible', 'Commit de la PR introuvable.');
-    }
-    const side = line.type === 'remove' ? 'LEFT' : 'RIGHT';
-    const post = async (note) => {
-      const body =
-        note && note.trim() ? note.trim() : `\`${(line.content || '').trim()}\``;
-      try {
-        await postReviewComment(t.owner, t.repo, t.number, {
-          body,
-          commitId: pr.headSha,
-          path: hunk.filePath,
-          line: line.lineNumber,
-          side,
-        });
-        Alert.alert('✓ Publié', `Commentaire posté sur ${hunk.filePath}:${line.lineNumber}.`);
-      } catch (e) {
-        Alert.alert('Échec', e?.message || 'Impossible de poster.');
-      }
-    };
-    if (Alert.prompt) {
-      Alert.prompt(
-        'Commenter cette ligne',
-        `${hunk.filePath}:${line.lineNumber}\n${(line.content || '').trim().slice(0, 80)}`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Poster', onPress: (text) => post(text) },
-        ],
-        'plain-text'
-      );
-    } else {
-      Alert.alert('Commenter cette ligne', `Poster sur ${hunk.filePath}:${line.lineNumber} ?`, [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Poster', onPress: () => post('') },
-      ]);
-    }
-  };
+  const handleCommentLine = () => showEvalNotice();
 
   if (loading) {
     return (

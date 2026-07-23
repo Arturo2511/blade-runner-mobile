@@ -4,6 +4,8 @@ import { initReactI18next } from 'react-i18next';
 const resources = {
   en: {
     translation: {
+      evalTitle: "Evaluation prototype",
+      evalMessage: "This action is disabled. This app is a prototype used for an evaluation (university thesis) — nothing is sent to GitHub. Thanks for taking part!",
       aiSummaryLabel: "AI Summary",
       aiSummaryShowLess: "Show less",
       aiSummaryShowMore: "Show more",
@@ -259,6 +261,8 @@ const resources = {
   },
   fr: {
     translation: {
+      evalTitle: "Prototype d'évaluation",
+      evalMessage: "Cette action est désactivée. Cette application est un prototype utilisé pour une évaluation (mémoire universitaire) — rien n'est envoyé sur GitHub. Merci pour votre participation !",
       aiSummaryLabel: "Résumé IA",
       aiSummaryShowLess: "Voir moins",
       aiSummaryShowMore: "Voir plus",
