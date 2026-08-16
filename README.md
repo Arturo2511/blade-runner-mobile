@@ -1,140 +1,158 @@
-# CodeReview Mobile
+# Blade Runner — Mobile
 
 ## Application mobile de revue de code ergonomique
 
-Cette application a été développée dans le cadre d'un mémoire de Master sur la conception d'un environnement de revue de code nomade ergonomique.
+Application React Native / Expo développée dans le cadre d'un mémoire de Master 60 (UNamur) sur la conception d'un environnement de revue de code nomade ergonomique.
+
+Elle se connecte à GitHub (OAuth Device Flow) pour lister les pull requests de l'utilisateur, et au backend **Blade Runner** (Spring) pour enrichir chaque PR avec les résultats d'analyse statique : métriques SonarQube, findings SARIF (CodeQL / Sonar) et graphe d'appels au format DOT.
 
 ![Logo de l'application](./assets/icon.png)
 
-## Fonctionnalités principales
+## Fonctionnalités
 
-- **Visualisation de code** avec coloration syntaxique adaptée aux écrans mobiles
-- **Visualisation des différences** (diff) entre versions de fichiers
-- **Système de commentaires** contextuel lié à des lignes de code spécifiques
-- **Explorateur de fichiers** pour naviguer facilement dans la structure d'un projet
-- **Gestion des revues** avec suivi de l'état et assignation
-- **Support hors ligne** pour travailler sans connexion internet
-- **Interface ergonomique** optimisée pour les appareils mobiles
-- **Support multilingue** (français et anglais)
-- **Mode sombre** pour réduire la fatigue oculaire
+- **Connexion GitHub** via OAuth Device Flow (aucun `client_secret` embarqué)
+- **Liste des pull requests ouvertes** de l'utilisateur, avec quality gate et compteurs de findings
+- **Tableau de bord de PR** : quality gate, bugs, vulnérabilités, hotspots, code smells, couverture, lignes ajoutées/supprimées
+- **Carte CodeCity** : treemap 2D des fichiers impactés, colorée par sévérité
+- **Minimap** : silhouette du fichier avec marqueurs de findings, tap pour se positionner, double-tap pour ouvrir le diff à cet endroit
+- **Diff unifié mobile** : repliage automatique des blocs de contexte, findings signalés sur la ligne concernée
+- **Graphe de dépendances** : navigateur ego-centré appelants / appelés, nœuds impactés et à risque
+- **Liste de findings** triée par sévérité, filtrable par catégorie (sécurité, bug, smell, perf)
+- **Résumé IA** de la PR, en texte lisible sur mobile
+- **Déclenchement de scan** depuis l'app, avec suivi de l'état d'analyse
+- **Thème clair / sombre / automatique**, persisté sur l'appareil
+- **Bilingue français / anglais** (i18next, détection de la langue système)
+- **Libellés d'accessibilité** sur les zones interactives des visualisations
 
-## Captures d'écran
+> ⚠️ **Prototype d'évaluation** — toutes les actions d'écriture GitHub (approuver, demander des modifications, commenter) sont neutralisées et affichent un avis d'évaluation. Rien n'est envoyé sur GitHub.
 
-### Téléphone
+## Prérequis
 
-<div style="display: flex; flex-wrap: wrap; gap: 10px;">
-  <img src="./docs/screenshots/phones/auth_screen.png" alt="Écran d'authentification" width="200"/>
-  <img src="./docs/screenshots/phones/home_screen.png" alt="Écran d'accueil" width="200"/>
-  <img src="./docs/screenshots/phones/code_viewer_screen.png" alt="Visualiseur de code" width="200"/>
-  <img src="./docs/screenshots/phones/diff_viewer_screen.png" alt="Visualiseur de différences" width="200"/>
-</div>
-
-### Tablette
-
-<div style="display: flex; flex-wrap: wrap; gap: 10px;">
-  <img src="./docs/screenshots/tablets/split_screen.png" alt="Vue partagée sur tablette" width="400"/>
-  <img src="./docs/screenshots/tablets/diff_viewer_screen.png" alt="Visualiseur de différences sur tablette" width="400"/>
-</div>
+- Node.js 20 ou supérieur
+- npm
+- Expo CLI (`npx expo`)
+- Android Studio (développement Android) ou Xcode (développement iOS, macOS uniquement)
 
 ## Installation
 
-### Prérequis
-
-- Node.js (v16 ou supérieur)
-- npm ou yarn
-- Expo CLI
-- Android Studio (pour le développement Android)
-- Xcode (pour le développement iOS, macOS uniquement)
-
-### Installation des dépendances
-
 ```bash
-# Cloner le dépôt
-git clone https://github.com/username/code-review-mobile.git
-cd code-review-mobile
-
-# Installer les dépendances
+git clone git@github.com:Arturo2511/blade-runner-mobile.git
+cd blade-runner-mobile
 npm install
-# ou
-yarn install
 ```
 
-### Lancement de l'application
+## Configuration
+
+### GitHub OAuth
+
+`src/config/github.js` contient le `clientId` de l'OAuth App GitHub. Pour utiliser la vôtre :
+
+1. Créez une OAuth App sur [github.com/settings/developers](https://github.com/settings/developers)
+2. Activez **Device flow** dans ses paramètres
+3. Renseignez le `clientId` (les scopes demandés sont `read:user`, `user:email`, `repo`)
+
+Sans `clientId`, la connexion échoue : il n'y a pas de mode démo.
+
+### Backend
+
+`src/config/backend.js` pointe vers :
+
+- `https://bladerunner.mozzon.net` en production
+- `http://localhost:8080` (ou `http://10.0.2.2:8080` sur émulateur Android) en développement
+
+Si le backend est injoignable ou si la PR n'a pas encore été scannée, l'app reste fonctionnelle avec les seules données GitHub (métriques et findings vides).
+
+## Lancement
 
 ```bash
-# Démarrer l'application avec Expo
-npm start
-# ou
-yarn start
+npm start        # Expo (choisir la plateforme dans le terminal)
+npm run ios
+npm run android
+npm run web
 ```
 
-Suivez les instructions dans le terminal pour lancer l'application sur un émulateur ou un appareil physique.
+## Build
+
+Les profils EAS sont définis dans `eas.json` :
+
+```bash
+eas build --profile development --platform ios   # dev client
+eas build --profile preview --platform android   # APK interne
+eas build --profile production                   # store (autoIncrement)
+```
 
 ## Architecture
 
-L'application est construite avec React Native et suit une architecture modulaire basée sur les composants. Voici la structure principale du projet :
-
 ```
-app/
+mobile/
+├── App.js                    # Navigation, providers (thème, auth), thèmes React Navigation
+├── index.js                  # Point d'entrée Expo
 ├── src/
-│   ├── components/       # Composants UI réutilisables
-│   ├── screens/          # Écrans de l'application
-│   ├── services/         # Services et logique métier
-│   └── utils/            # Fonctions utilitaires
-├── assets/               # Ressources (images, polices, etc.)
-└── docs/                 # Documentation
+│   ├── components/           # Composants de visualisation
+│   ├── screens/              # Écrans
+│   ├── services/             # Auth, API GitHub, API backend, stockage, thème
+│   ├── config/               # Configuration GitHub OAuth et backend
+│   ├── data/                 # Palettes sémantiques (sévérité, quality gate, statut)
+│   └── utils/                # Parseurs SARIF / DOT, i18n
+├── assets/                   # Icônes et splash
+└── docs/                     # Documentation d'architecture et de fonctionnalités
 ```
 
-### Composants principaux
+### Écrans
 
-- **CodeViewer** : Affichage du code avec coloration syntaxique
-- **DiffViewer** : Visualisation des différences entre versions
-- **CommentThread** : Gestion des fils de commentaires
-- **FileExplorer** : Navigation dans la structure des fichiers
-- **ReviewStatusIndicator** : Affichage de l'état des revues
+- **AuthScreen** : connexion GitHub par device flow (affichage du `user_code`, ouverture du navigateur, polling du token)
+- **HomeScreen** : liste des PR ouvertes, enrichies par les métriques backend, avec pull-to-refresh
+- **PullRequestScreen** : orchestre la revue d'une PR en six onglets — Aperçu, Carte, Minimap, Diff, Graphe, Findings
+- **ProfileScreen** : identité GitHub en lecture seule, choix du thème et de la langue, déconnexion
+
+### Composants
+
+- **MetricsDashboard** : grille des KPI de la PR
+- **CodeCityView** : treemap 2D des fichiers impactés
+- **MiniMap** : silhouette du fichier et gouttière de findings
+- **MobileDiffView** : diff unifié optimisé pour l'écran mobile
+- **DependencyGraph** : navigation dans le graphe d'appels
+- **FindingsList** : findings triés par sévérité, avec filtres
+- **AiSummary** : rendu du résumé IA
+- **ReviewStatusIndicator** : état de la revue
 
 ### Services
 
-- **ApiService** : Communication avec l'API backend
-- **AuthService** : Gestion de l'authentification
-- **StorageService** : Persistance des données et support hors ligne
-- **ContextProviders** : Gestion de l'état global de l'application
+- **githubOAuth** : device flow complet (device code → navigateur → polling → profil)
+- **githubApi** : PR, fichiers modifiés et diff via l'API REST GitHub
+- **backendApi** : `GET /metrics`, `GET /listPr`, ping `/actuator/health`, avec timeout et dégradation gracieuse
+- **scanTracker** : déclenchement d'un scan et suivi de son état
+- **auth** / **context** : session stockée en AsyncStorage et état global
+- **storage** : préférences utilisateur, cache avec expiration
+- **theme** : mode `auto` / `light` / `dark` et palette de surfaces
+
+### Utilitaires
+
+- **sarifParser** : SARIF v2.1.0 → liste plate de findings (sévérité, catégorie, localisation)
+- **dotParser** : DOT Graphviz → nœuds et arêtes du graphe d'appels, marquage des nœuds impactés
+- **i18n** : ressources françaises et anglaises
 
 ## Considérations ergonomiques
 
-L'application a été conçue avec une attention particulière à l'ergonomie sur appareils mobiles :
+- Visualisations pensées pour l'écran étroit : treemap, minimap et diff replié plutôt qu'un défilement linéaire
+- Navigation par onglets balayables au sein d'une PR
+- Zones de toucher généreuses, double-tap pour approfondir sans quitter le contexte
+- Palettes sémantiques identiques en clair et en sombre, pour un repérage stable des sévérités
+- Dégradation gracieuse quand le backend est absent, plutôt qu'un écran d'erreur bloquant
 
-- **Adaptation aux écrans de petite taille** avec mise en page responsive
-- **Interactions tactiles optimisées** avec zones de toucher généreuses
-- **Navigation simplifiée** pour réduire le nombre d'interactions nécessaires
-- **Mode hors ligne** pour travailler sans connexion internet
-- **Optimisations de performance** pour une expérience fluide
+## Technologies
 
-## Fonctionnalités d'accessibilité
-
-- **Support des lecteurs d'écran** avec étiquettes descriptives
-- **Mode sombre** pour réduire la fatigue oculaire
-- **Options de taille de texte** ajustables
-- **Contraste suffisant** entre le texte et l'arrière-plan
-
-## Technologies utilisées
-
-- **React Native** : Framework de développement mobile
-- **React Navigation** : Navigation entre les écrans
-- **i18next** : Internationalisation
-- **AsyncStorage** : Stockage local des données
-- **react-syntax-highlighter** : Coloration syntaxique du code
+- **Expo SDK 57** / **React Native 0.86** / **React 19**
+- **React Navigation 6** (stack + bottom tabs)
+- **react-native-gesture-handler** et **react-native-reanimated**
+- **i18next** / **react-i18next**
+- **AsyncStorage** pour la persistance locale
+- **expo-web-browser** pour le device flow OAuth
 
 ## Licence
 
 Ce projet est développé dans le cadre d'un mémoire universitaire et n'est pas disponible pour une utilisation commerciale sans autorisation.
 
-## Auteur
+## Auteurs
 
-[Nom de l'auteur] - Étudiant en Master à [Nom de l'université belge]
-
-## Remerciements
-
-- [Nom du directeur de mémoire] pour son encadrement et ses conseils
-- [Nom de l'université] pour son soutien
-- La communauté React Native pour les ressources et outils open source
+Arturo MOZZON et Pawel JALBRZYKOWSKI — Master 60 en Sciences Informatiques, Université de Namur (UNamur)
